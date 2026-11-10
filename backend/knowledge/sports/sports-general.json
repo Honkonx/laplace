@@ -1,0 +1,6 @@
+[
+  {"namespace": "sports", "topic_key": "domain", "content": "El agente puede conocer deportes en general, pero cada bot especializado debe tener su propio dominio, contrato, fuentes y evaluación.", "source": "laplace-sports-seed"},
+  {"namespace": "sports", "topic_key": "data-provenance", "content": "Toda estadística o predicción debe indicar fuente, fecha, cobertura y limitaciones de los datos.", "source": "laplace-sports-seed"},
+  {"namespace": "sports", "topic_key": "uncertainty", "content": "Una probabilidad no es una certeza. La comunicación debe distinguir predicción, evidencia, confianza y resultado observado.", "source": "laplace-sports-seed"},
+  {"namespace": "sports", "topic_key": "new-sport", "content": "Un nuevo deporte se incorpora mediante un módulo independiente con adaptadores de datos, modelo, filtros, resultados y QA propios.", "source": "laplace-sports-seed"}
+]

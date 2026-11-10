@@ -1,0 +1,770 @@
+{
+  "version": 1,
+  "nota": "Datos de runtime del modulo historico: nombre de liga (como lo escriben LiveScore6/API-Football/BSD) -> codigo de liga del historico. Para anadir una liga basta con anadir una entrada (el codigo debe coincidir con el del artefacto dixon_coles_ligas.json; si el artefacto no lo trae se ignora sin error). Nombres en minusculas sin acentos; los sufijos de fase (Apertura, Clausura, Group, Round...) se quitan antes de comparar. Tras resolver la liga, el modulo SIEMPRE exige que ambos equipos existan en el modelo de esa liga, asi que un nombre generico compartido por varios paises ('premier league', 'primera division') es seguro. 'pais' desambigua cuando el dato trae d['pais'] o '(Pais)' en el nombre. 'api_football_id' es el id de liga de API-Football (partidos_dia.liga_codigo / d['liga_id']); los ids sudamericanos y asiaticos no se han verificado contra la API real: un id equivocado solo no cubre (la validacion por equipos lo frena).",
+  "sinonimos_pais": {
+    "inglaterra": "england",
+    "reino unido": "england",
+    "united kingdom": "england",
+    "uk": "england",
+    "escocia": "scotland",
+    "espana": "spain",
+    "italia": "italy",
+    "alemania": "germany",
+    "francia": "france",
+    "paises bajos": "netherlands",
+    "holanda": "netherlands",
+    "belgica": "belgium",
+    "turquia": "turkey",
+    "grecia": "greece",
+    "suiza": "switzerland",
+    "dinamarca": "denmark",
+    "suecia": "sweden",
+    "noruega": "norway",
+    "finlandia": "finland",
+    "polonia": "poland",
+    "rumania": "romania",
+    "rusia": "russia",
+    "irlanda": "ireland",
+    "republic of ireland": "ireland",
+    "brasil": "brazil",
+    "estados unidos": "usa",
+    "united states": "usa",
+    "japon": "japan",
+    "corea del sur": "south korea",
+    "korea republic": "south korea",
+    "korea": "south korea",
+    "arabia saudita": "saudi arabia"
+  },
+  "ligas": [
+    {
+      "codigo": "E0",
+      "pais": "england",
+      "api_football_id": [
+        39
+      ],
+      "nombres": [
+        "premier league",
+        "english premier league",
+        "epl",
+        "england premier league",
+        "premier league england",
+        "barclays premier league"
+      ]
+    },
+    {
+      "codigo": "E1",
+      "pais": "england",
+      "api_football_id": [
+        40
+      ],
+      "nombres": [
+        "championship",
+        "efl championship",
+        "sky bet championship",
+        "english championship",
+        "england championship"
+      ]
+    },
+    {
+      "codigo": "E2",
+      "pais": "england",
+      "api_football_id": [
+        41
+      ],
+      "nombres": [
+        "league one",
+        "efl league one",
+        "sky bet league one",
+        "english league one",
+        "england league one",
+        "league 1"
+      ]
+    },
+    {
+      "codigo": "E3",
+      "pais": "england",
+      "api_football_id": [
+        42
+      ],
+      "nombres": [
+        "league two",
+        "efl league two",
+        "sky bet league two",
+        "english league two",
+        "england league two",
+        "league 2"
+      ]
+    },
+    {
+      "codigo": "SC0",
+      "pais": "scotland",
+      "api_football_id": [
+        179
+      ],
+      "nombres": [
+        "scottish premiership",
+        "premiership",
+        "scottish premier league",
+        "spfl premiership",
+        "premiership scotland"
+      ]
+    },
+    {
+      "codigo": "SP1",
+      "pais": "spain",
+      "api_football_id": [
+        140
+      ],
+      "nombres": [
+        "laliga",
+        "la liga",
+        "primera division",
+        "laliga ea sports",
+        "la liga ea sports",
+        "liga espanola",
+        "primera division de espana",
+        "spanish la liga"
+      ]
+    },
+    {
+      "codigo": "SP2",
+      "pais": "spain",
+      "api_football_id": [
+        141
+      ],
+      "nombres": [
+        "laliga 2",
+        "la liga 2",
+        "segunda division",
+        "laliga hypermotion",
+        "la liga hypermotion",
+        "laliga smartbank",
+        "segunda division de espana",
+        "laliga2"
+      ]
+    },
+    {
+      "codigo": "I1",
+      "pais": "italy",
+      "api_football_id": [
+        135
+      ],
+      "nombres": [
+        "serie a",
+        "serie a tim",
+        "serie a enilive",
+        "italian serie a",
+        "serie a italia"
+      ]
+    },
+    {
+      "codigo": "I2",
+      "pais": "italy",
+      "api_football_id": [
+        136
+      ],
+      "nombres": [
+        "serie b",
+        "serie bkt",
+        "italian serie b",
+        "serie b italia"
+      ]
+    },
+    {
+      "codigo": "D1",
+      "pais": "germany",
+      "api_football_id": [
+        78
+      ],
+      "nombres": [
+        "bundesliga",
+        "1. bundesliga",
+        "1 bundesliga",
+        "german bundesliga",
+        "bundesliga germany"
+      ]
+    },
+    {
+      "codigo": "D2",
+      "pais": "germany",
+      "api_football_id": [
+        79
+      ],
+      "nombres": [
+        "2. bundesliga",
+        "2 bundesliga",
+        "bundesliga 2",
+        "german 2. bundesliga"
+      ]
+    },
+    {
+      "codigo": "F1",
+      "pais": "france",
+      "api_football_id": [
+        61
+      ],
+      "nombres": [
+        "ligue 1",
+        "ligue 1 uber eats",
+        "ligue 1 mcdonald s",
+        "french ligue 1",
+        "ligue 1 france"
+      ]
+    },
+    {
+      "codigo": "F2",
+      "pais": "france",
+      "api_football_id": [
+        62
+      ],
+      "nombres": [
+        "ligue 2",
+        "ligue 2 bkt",
+        "french ligue 2",
+        "ligue 2 france"
+      ]
+    },
+    {
+      "codigo": "N1",
+      "pais": "netherlands",
+      "api_football_id": [
+        88
+      ],
+      "nombres": [
+        "eredivisie",
+        "dutch eredivisie",
+        "eredivisie netherlands"
+      ]
+    },
+    {
+      "codigo": "B1",
+      "pais": "belgium",
+      "api_football_id": [
+        144
+      ],
+      "nombres": [
+        "pro league",
+        "jupiler pro league",
+        "jupiler league",
+        "jupiler",
+        "first division a",
+        "belgian pro league",
+        "belgian first division a"
+      ]
+    },
+    {
+      "codigo": "P1",
+      "pais": "portugal",
+      "api_football_id": [
+        94
+      ],
+      "nombres": [
+        "primeira liga",
+        "liga portugal",
+        "liga portugal betclic",
+        "liga portugal 1",
+        "liga nos",
+        "portuguese primeira liga"
+      ]
+    },
+    {
+      "codigo": "T1",
+      "pais": "turkey",
+      "api_football_id": [
+        203
+      ],
+      "nombres": [
+        "super lig",
+        "trendyol super lig",
+        "turkish super lig",
+        "super lig turkey"
+      ]
+    },
+    {
+      "codigo": "G1",
+      "pais": "greece",
+      "api_football_id": [
+        197
+      ],
+      "nombres": [
+        "super league",
+        "super league 1",
+        "super league greece",
+        "greek super league"
+      ]
+    },
+    {
+      "codigo": "SWZ",
+      "pais": "switzerland",
+      "api_football_id": [
+        207
+      ],
+      "nombres": [
+        "super league",
+        "swiss super league",
+        "super league switzerland"
+      ]
+    },
+    {
+      "codigo": "CHN",
+      "pais": "china",
+      "api_football_id": [
+        169
+      ],
+      "nombres": [
+        "super league",
+        "chinese super league",
+        "super league china",
+        "csl"
+      ]
+    },
+    {
+      "codigo": "AUT",
+      "pais": "austria",
+      "api_football_id": [
+        218
+      ],
+      "nombres": [
+        "bundesliga",
+        "austrian bundesliga",
+        "bundesliga austria",
+        "admiral bundesliga",
+        "tipico bundesliga"
+      ]
+    },
+    {
+      "codigo": "DNK",
+      "pais": "denmark",
+      "api_football_id": [
+        119
+      ],
+      "nombres": [
+        "superliga",
+        "superligaen",
+        "danish superliga",
+        "3f superliga",
+        "superliga denmark"
+      ]
+    },
+    {
+      "codigo": "SWE",
+      "pais": "sweden",
+      "api_football_id": [
+        113
+      ],
+      "nombres": [
+        "allsvenskan",
+        "swedish allsvenskan"
+      ]
+    },
+    {
+      "codigo": "NOR",
+      "pais": "norway",
+      "api_football_id": [
+        103
+      ],
+      "nombres": [
+        "eliteserien",
+        "norwegian eliteserien"
+      ]
+    },
+    {
+      "codigo": "FIN",
+      "pais": "finland",
+      "api_football_id": [
+        244
+      ],
+      "nombres": [
+        "veikkausliiga",
+        "finnish veikkausliiga"
+      ]
+    },
+    {
+      "codigo": "POL",
+      "pais": "poland",
+      "api_football_id": [
+        106
+      ],
+      "nombres": [
+        "ekstraklasa",
+        "pko bp ekstraklasa",
+        "pko ekstraklasa",
+        "polish ekstraklasa"
+      ]
+    },
+    {
+      "codigo": "ROU",
+      "pais": "romania",
+      "api_football_id": [
+        283
+      ],
+      "nombres": [
+        "liga i",
+        "liga 1 romania",
+        "superliga",
+        "superliga romania",
+        "romanian liga i"
+      ]
+    },
+    {
+      "codigo": "RUS",
+      "pais": "russia",
+      "api_football_id": [
+        235
+      ],
+      "nombres": [
+        "premier league",
+        "premier league russia",
+        "russian premier league",
+        "premier liga",
+        "rpl"
+      ]
+    },
+    {
+      "codigo": "IRL",
+      "pais": "ireland",
+      "api_football_id": [
+        357
+      ],
+      "nombres": [
+        "premier division",
+        "league of ireland premier division",
+        "league of ireland",
+        "airtricity league premier division"
+      ]
+    },
+    {
+      "codigo": "ARG",
+      "pais": "argentina",
+      "api_football_id": [
+        128
+      ],
+      "nombres": [
+        "liga profesional",
+        "liga profesional argentina",
+        "liga profesional de futbol",
+        "liga profesional de futbol argentina",
+        "argentina primera division",
+        "primera division",
+        "primera division argentina",
+        "superliga argentina",
+        "torneo betano",
+        "liga argentina"
+      ],
+      "patrones": [
+        "^liga profesional\\b.*",
+        "^torneo (betano|apertura|clausura|inicial|final)\\b.*"
+      ]
+    },
+    {
+      "codigo": "BRA",
+      "pais": "brazil",
+      "api_football_id": [
+        71
+      ],
+      "nombres": [
+        "brasileirao",
+        "brasileirao serie a",
+        "campeonato brasileiro",
+        "campeonato brasileiro serie a",
+        "serie a",
+        "serie a brazil",
+        "serie a brasil",
+        "brazilian serie a",
+        "brasileirao betano"
+      ],
+      "patrones": [
+        "^(campeonato )?brasileir(ao|o)\\b.*"
+      ]
+    },
+    {
+      "codigo": "MEX",
+      "pais": "mexico",
+      "api_football_id": [
+        262
+      ],
+      "nombres": [
+        "liga mx",
+        "liga bbva mx",
+        "liga mx apertura",
+        "liga mx clausura",
+        "primera division mexico",
+        "liga bancomer mx",
+        "mexican liga mx"
+      ],
+      "patrones": [
+        "^liga (bbva )?mx\\b.*"
+      ]
+    },
+    {
+      "codigo": "USA",
+      "pais": "usa",
+      "api_football_id": [
+        253
+      ],
+      "nombres": [
+        "mls",
+        "major league soccer",
+        "usa mls",
+        "mls regular season"
+      ]
+    },
+    {
+      "codigo": "JPN",
+      "pais": "japan",
+      "api_football_id": [
+        98
+      ],
+      "nombres": [
+        "j1 league",
+        "j league",
+        "j. league",
+        "j.league",
+        "j1",
+        "meiji yasuda j1 league",
+        "japanese j1 league"
+      ]
+    },
+    {
+      "codigo": "CHL1",
+      "pais": "chile",
+      "api_football_id": [
+        265
+      ],
+      "nombres": [
+        "primera division",
+        "primera division chile",
+        "campeonato nacional",
+        "campeonato betano",
+        "liga de primera",
+        "liga chilena",
+        "chilean primera division"
+      ]
+    },
+    {
+      "codigo": "COL1",
+      "pais": "colombia",
+      "api_football_id": [
+        239
+      ],
+      "nombres": [
+        "primera a",
+        "liga betplay",
+        "liga betplay dimayor",
+        "categoria primera a",
+        "primera division colombia",
+        "liga dimayor",
+        "colombian primera a",
+        "liga colombiana"
+      ]
+    },
+    {
+      "codigo": "PER1",
+      "pais": "peru",
+      "api_football_id": [
+        281
+      ],
+      "nombres": [
+        "liga 1",
+        "liga 1 peru",
+        "liga 1 betsson",
+        "primera division peru",
+        "primera division",
+        "peruvian primera division",
+        "liga peruana"
+      ]
+    },
+    {
+      "codigo": "URY1",
+      "pais": "uruguay",
+      "api_football_id": [
+        268,
+        270
+      ],
+      "nombres": [
+        "primera division",
+        "primera division uruguay",
+        "liga uruguaya",
+        "liga auf uruguaya",
+        "campeonato uruguayo",
+        "uruguayan primera division",
+        "liga auf"
+      ]
+    },
+    {
+      "codigo": "ECU1",
+      "pais": "ecuador",
+      "api_football_id": [
+        240
+      ],
+      "nombres": [
+        "liga pro",
+        "ligapro",
+        "serie a",
+        "liga pro ecuador",
+        "ligapro ecuador",
+        "serie a ecuador",
+        "ecuadorian serie a",
+        "liga pro serie a",
+        "primera division"
+      ]
+    },
+    {
+      "codigo": "PRY1",
+      "pais": "paraguay",
+      "api_football_id": [
+        250,
+        252
+      ],
+      "nombres": [
+        "division profesional",
+        "primera division",
+        "primera division paraguay",
+        "division de honor",
+        "liga paraguaya",
+        "paraguayan primera division",
+        "division profesional paraguay"
+      ]
+    },
+    {
+      "codigo": "BOL1",
+      "pais": "bolivia",
+      "api_football_id": [
+        344
+      ],
+      "nombres": [
+        "division profesional",
+        "primera division",
+        "primera division bolivia",
+        "liga boliviana",
+        "division profesional bolivia",
+        "bolivian primera division",
+        "liga de futbol profesional boliviano"
+      ]
+    },
+    {
+      "codigo": "VEN1",
+      "pais": "venezuela",
+      "api_football_id": [
+        299
+      ],
+      "nombres": [
+        "primera division",
+        "primera division venezuela",
+        "liga futve",
+        "liga funve",
+        "venezuelan primera division",
+        "liga futve venezuela"
+      ]
+    },
+    {
+      "codigo": "SAU1",
+      "pais": "saudi arabia",
+      "api_football_id": [
+        307
+      ],
+      "nombres": [
+        "saudi professional league",
+        "saudi pro league",
+        "roshn saudi league",
+        "saudi league",
+        "spl",
+        "saudi arabia professional league"
+      ]
+    },
+    {
+      "codigo": "KOR1",
+      "pais": "south korea",
+      "api_football_id": [
+        292
+      ],
+      "nombres": [
+        "k league 1",
+        "k league",
+        "k-league 1",
+        "korean k league 1",
+        "k league classic"
+      ]
+    },
+    {
+      "codigo": "BRA2",
+      "pais": "brazil",
+      "api_football_id": [
+        72
+      ],
+      "nombres": [
+        "serie b",
+        "brasileirao serie b",
+        "campeonato brasileiro serie b",
+        "serie b brazil",
+        "serie b brasil",
+        "brazilian serie b"
+      ]
+    },
+    {
+      "codigo": "UCL",
+      "pais": "",
+      "api_football_id": [
+        2
+      ],
+      "nombres": [
+        "uefa champions league",
+        "champions league europe",
+        "liga de campeones",
+        "uefa liga de campeones",
+        "champions league"
+      ],
+      "patrones": [
+        "^uefa champions league\\b.*"
+      ]
+    },
+    {
+      "codigo": "UEL",
+      "pais": "",
+      "api_football_id": [
+        3
+      ],
+      "nombres": [
+        "uefa europa league",
+        "europa league europe",
+        "liga europa",
+        "europa league"
+      ],
+      "patrones": [
+        "^uefa europa league\\b.*"
+      ]
+    },
+    {
+      "codigo": "CLI",
+      "pais": "",
+      "api_football_id": [
+        13
+      ],
+      "nombres": [
+        "conmebol libertadores",
+        "copa libertadores",
+        "libertadores",
+        "copa conmebol libertadores"
+      ],
+      "patrones": [
+        "^(copa )?(conmebol )?libertadores\\b.*"
+      ]
+    },
+    {
+      "codigo": "CSU",
+      "pais": "",
+      "api_football_id": [
+        11
+      ],
+      "nombres": [
+        "conmebol sudamericana",
+        "copa sudamericana",
+        "sudamericana",
+        "copa conmebol sudamericana"
+      ],
+      "patrones": [
+        "^(copa )?(conmebol )?sudamericana\\b.*"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,32 @@
+# backend/requirements.txt — dependencias para EJECUTAR Laplace (backend + agente + bots de Telegram).
+#
+# Dividido el 2026-11-09 para la instalación portable (docs/archive/planes/INSTALACION_Y_PORTABILIDAD_PLAN_2026-11-09.md):
+#   requirements.txt           núcleo: lo único que hace falta para correr (este archivo)
+#   requirements-dev.txt       núcleo + pruebas y linter
+#   requirements-postgres.txt  driver de Postgres (solo si DATABASE_URL apunta a Postgres, p. ej. en una VPS)
+#   requirements-ml.txt        numpy/scipy/scikit-learn: SOLO para entrenar y evaluar (el bot no los usa en ejecución)
+#
+# `uvicorn` simple (sin [standard]): uvloop/httptools son extensiones nativas que no existen para Windows ni para
+# Termux/Android y el bot no las necesita.
+
+fastapi==0.115.6
+uvicorn==0.34.0
+sqlalchemy==2.0.36
+alembic==1.14.0
+pydantic==2.10.4
+pydantic-settings==2.7.0
+httpx==0.28.1
+
+# Telegram, planificador y zona horaria (Windows no trae la base IANA que necesita zoneinfo("America/Santiago"))
+python-telegram-bot==21.9
+APScheduler==3.11.0
+tzdata==2024.2
+
+# Proveedores de IA (Ollama Cloud/Groq/Gemini/OpenRouter/Claude): todos por httpx REST, sin SDK propio.
+
+# Login usuario+clave app/web: Argon2id + JWT de sesión.
+argon2-cffi==25.1.0
+PyJWT==2.13.0
+
+# Límite de peticiones en /api/v1/auth/login y /registro (backend/api/core/rate_limit.py).
+slowapi==0.1.10

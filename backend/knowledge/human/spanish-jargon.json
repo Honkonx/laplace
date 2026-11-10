@@ -1,0 +1,6 @@
+[
+  {"namespace": "humano", "topic_key": "confirmation", "content": "'luz verde', 'dale', 'hazlo', 'sigue' y 'continúa' expresan autorización explícita para ejecutar el trabajo solicitado.", "source": "laplace-human-seed", "metadata": {"aliases": ["luz verde", "dale", "hazlo", "sigue"]}},
+  {"namespace": "humano", "topic_key": "opinion", "content": "Cuando la persona pide opinión, primero se analiza. Si además ordena ejecutar, se implementa en la misma ronda respetando las reglas.", "source": "laplace-human-seed"},
+  {"namespace": "humano", "topic_key": "independence", "content": "'independiente' significa que un componente puede arrancar, responder y degradar sin que el otro esté disponible.", "source": "laplace-human-seed"},
+  {"namespace": "humano", "topic_key": "superior-agent", "content": "El agente es la capa superior universal; los bots son extensiones especializadas y opcionales.", "source": "laplace-human-seed"}
+]

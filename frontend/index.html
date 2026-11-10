@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      try {
+        var t = localStorage.getItem("laplace_web_tema");
+        if (t === "claro" || t === "oscuro") document.documentElement.setAttribute("data-theme", t === "claro" ? "light" : "dark");
+      } catch (e) {}
+    </script>
+    <title>Laplace — Predicciones deportivas</title>
+    <meta name="description" content="Pronósticos de fútbol con modelos estadísticos y consenso ponderado. Cada número muestra de dónde sale." />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0d0d14" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Laplace" />
+    <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+    <link rel="icon" type="image/x-icon" href="/icons/favicon.ico" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="48x48" href="/icons/favicon-48.png" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

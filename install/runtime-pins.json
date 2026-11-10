@@ -1,0 +1,29 @@
+{
+  "_nota": "Versiones y huellas SHA-256 de lo que descarga el instalador portable. Se verifican ANTES de extraer: si no coinciden, se aborta. Fuentes: uv → GitHub releases de astral-sh/uv (campo digest de la API); Node → SHASUMS256.txt de nodejs.org/dist/v<versión>/. Para actualizar: python install/actualizar_pines.py",
+  "python": "3.13",
+  "pnpm": "12.16.1",
+  "uv": {
+    "version": "0.13.7",
+    "url": "https://github.com/astral-sh/uv/releases/download/{version}/{archivo}",
+    "archivos": {
+      "windows-x64": {"archivo": "uv-x86_64-pc-windows-msvc.zip", "sha256": "0cdc5b38fe5a8168ed6a25814f5ba43c21d313dd3187314fccb37b7cec46e021"},
+      "windows-arm64": {"archivo": "uv-aarch64-pc-windows-msvc.zip", "sha256": "505d9e65e7692bac3ddf98c66754aa26c5050c409c184af30a881a0a72cc85e3"},
+      "linux-x64": {"archivo": "uv-x86_64-unknown-linux-gnu.tar.gz", "sha256": "c5221ff41b7892bfc223543883600125f6a47fe845093e0f5bdff4f359196d83"},
+      "linux-arm64": {"archivo": "uv-aarch64-unknown-linux-gnu.tar.gz", "sha256": "71279f8d3c67241e807b9d8db872d1bf541579fb9f08b7d1eb1682196d1e57dc"},
+      "macos-x64": {"archivo": "uv-x86_64-apple-darwin.tar.gz", "sha256": "20c47e4c1f630b8abaff8c291fa9b9aa300fef92c4fbff95adf198b55287cda7"},
+      "macos-arm64": {"archivo": "uv-aarch64-apple-darwin.tar.gz", "sha256": "81b811b57e4624df7ed3aac148e0359100d9962f3d9dce00aec533dc2e086731"}
+    }
+  },
+  "node": {
+    "version": "24.22.2",
+    "url": "https://nodejs.org/dist/v{version}/{archivo}",
+    "archivos": {
+      "windows-x64": {"archivo": "node-v24.22.2-win-x64.zip", "sha256": "ca1bff5d8ead13c9f2ea404a176db46bd430704d5b5113734049fa365e7799e2"},
+      "windows-arm64": {"archivo": "node-v24.22.2-win-arm64.zip", "sha256": "f47968c213105077f64c6510f007632c0ca2574802a0b5067c327c49abe1c468"},
+      "linux-x64": {"archivo": "node-v24.22.2-linux-x64.tar.xz", "sha256": "48cc0e21e048790e54c0cf5749c2725005313d652651c40b7a21feb9697aaf75"},
+      "linux-arm64": {"archivo": "node-v24.22.2-linux-arm64.tar.xz", "sha256": "eb187837a2230d4047161ac0be008584e16b46f726e9c9490ee35dc6b17d9ba8"},
+      "macos-x64": {"archivo": "node-v24.22.2-darwin-x64.tar.gz", "sha256": "d5e336d588c45be0c37dbd52cc29895593009ca4997a77a1fd02815131ed0e52"},
+      "macos-arm64": {"archivo": "node-v24.22.2-darwin-arm64.tar.gz", "sha256": "aa9549349e47dffaa42dcf95d6e06ade8c4bdafc980979883b88767670df385a"}
+    }
+  }
+}

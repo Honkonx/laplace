@@ -1,0 +1,300 @@
+[
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-probabilidad-ponderada",
+  "content": "Probabilidad ponderada: es la probabilidad de local, empate y visitante que resulta de combinar los modelos del bot con un peso a cada uno (hoy pesan sobre todo las cuotas del mercado y el modelo histórico Dixon-Coles). El pick es el resultado con mayor probabilidad ponderada y de ella sale la confianza. Es una estimación estadística, no una certeza.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "probabilidad ponderada",
+    "prob ponderada",
+    "probabilidad del pick"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-confianza",
+  "content": "Confianza (ALTA, MEDIA o BAJA): resume qué tan fuerte es la probabilidad ponderada del pick. ALTA: 60% o más; en el histórico medido el pick acertó cerca de 72% de las veces. MEDIA: entre 50% y 60%; acertó cerca de 57%. BAJA: menos de 50%; acertó 46% o menos (cerca de 46% entre 45% y 50% y cerca de 40% bajo 45%). Si solo un modelo aporta datos, la confianza nunca pasa de BAJA. Son frecuencias pasadas medidas con partidos reales, no una garantía para un partido concreto.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "confianza",
+    "confianza alta",
+    "confianza media",
+    "confianza baja",
+    "nivel de confianza",
+    "alta media baja"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-tasa-base",
+  "content": "Tasa base: la frecuencia histórica con la que ocurre algo en una liga, por ejemplo cuántas veces gana el local, empata o gana el visitante, o cuántos goles se marcan por partido. Sirve de punto de comparación: un modelo solo aporta si mejora lo que ya se sabría mirando la tasa base. Describe lo que pasó, no promete lo que pasará.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "tasa base",
+    "tasas base",
+    "base rate"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-mercado",
+  "content": "Mercado: las cuotas que publican las casas de apuestas contienen una probabilidad implícita para local, empate y visitante, una vez quitado el margen de la casa. Laplace las usa solo como dato de análisis y como vara de comparación: en la evaluación histórica el mercado fue más difícil de superar que cualquier modelo propio, por eso el bot le da mucho peso cuando hay cuotas. Laplace no es una casa de apuestas ni recibe dinero para apostar.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "mercado",
+    "cuotas",
+    "cuota",
+    "odds",
+    "probabilidad implicita",
+    "margen"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-xg",
+  "content": "xG (goles esperados): estimación de cuántos goles debería haber marcado un equipo según la calidad de sus ocasiones. Mide la calidad de las oportunidades, no el marcador. Los perfiles de equipo calculados del histórico no incluyen xG, solo goles, tiros y otras cifras medidas.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "xg",
+    "expected goals",
+    "goles esperados"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-over-under",
+  "content": "Over/Under 2.5: indica si el partido termina con más de 2,5 goles en total (3 o más, over) o con 2 o menos (under). Los perfiles de equipo y las tasas base de liga muestran el porcentaje histórico de partidos con más de 2,5 goles.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "over",
+    "under",
+    "over 2.5",
+    "under 2.5",
+    "mas de 2.5",
+    "over/under",
+    "goles totales"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-btts",
+  "content": "Ambos anotan (BTTS, both teams to score): el partido termina con al menos un gol de cada equipo. Los perfiles muestran el porcentaje histórico de partidos del equipo en que ambos anotaron.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "btts",
+    "ambos anotan",
+    "ambos equipos anotan",
+    "ambos marcan"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-forma",
+  "content": "Forma o racha: los resultados recientes de un equipo, normalmente sus últimos cinco partidos. Es un indicador corto y ruidoso: con pocos partidos, la suerte pesa mucho. En la evaluación histórica el módulo de forma aportó muy poco, por eso pesa poco en el consenso.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "forma",
+    "forma reciente",
+    "racha"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-h2h",
+  "content": "H2H (head to head): el historial de enfrentamientos directos entre dos equipos. Con pocos partidos y plantillas que cambian, aporta poca información; en la evaluación histórica no mejoró las predicciones y hoy no pesa en el consenso.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "h2h",
+    "head to head",
+    "cara a cara",
+    "historial entre equipos",
+    "enfrentamientos directos"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-localia",
+  "content": "Localía: los equipos suelen rendir mejor en su estadio. En las tasas base de cada liga se ve como mayor porcentaje de victorias locales y más goles del local que del visitante. El tamaño de la ventaja cambia por liga.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "localia",
+    "ventaja de local",
+    "factor cancha",
+    "local y visitante"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-dixon-coles",
+  "content": "Dixon-Coles: modelo estadístico de goles que estima la fuerza de ataque y defensa de cada equipo con años de partidos reales, más una ventaja de local. Es el módulo histórico del bot. Si sus datos tienen más de un año el bot baja la confianza y lo avisa.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "dixon coles",
+    "dixon-coles",
+    "modelo historico"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-poisson",
+  "content": "Poisson: distribución que describe cuántos goles puede marcar un equipo cuando el promedio esperado es conocido. Dixon-Coles la usa por debajo con un ajuste para marcadores bajos. Hoy el módulo Poisson simple corre y se registra para medirlo, pero no vota en el consenso.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "poisson",
+    "distribucion de poisson"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-rps",
+  "content": "RPS y log-loss: métricas para medir qué tan buenas son las probabilidades de un modelo, no solo si acertó el resultado. Valores más bajos son mejores. Laplace las usa para comparar sus modelos contra la tasa base y contra el mercado.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "rps",
+    "ranked probability score",
+    "log loss",
+    "log-loss",
+    "brier"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-calibracion",
+  "content": "Calibración: un modelo está calibrado si, entre los partidos a los que asigna 60%, el resultado ocurre cerca de 60% de las veces. Es lo que permite leer una probabilidad como frecuencia real y no como una cifra decorativa.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "calibracion",
+    "calibrado"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-empate",
+  "content": "Empate: es el resultado más difícil de anticipar porque ocurre en cerca de uno de cada cuatro partidos y rara vez es el resultado más probable. Por eso el bot casi nunca lo elige como pick; su porcentaje histórico por liga está en las tasas base.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "empate",
+    "empates",
+    "tasa de empate"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-muestra",
+  "content": "Tamaño de muestra: cuántos partidos respaldan una cifra. Con pocos partidos un promedio es inestable. Cada perfil de equipo indica cuántos partidos usó en cada ventana; conviene desconfiar de las cifras con menos de 15 o 20 partidos.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "muestra",
+    "tamano de muestra",
+    "pocos partidos"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-doble-oportunidad",
+  "content": "Doble oportunidad: combinación de dos resultados (local o empate, visitante o empate, local o visitante). Laplace muestra probabilidades 1X2 separadas; la suma de dos de ellas da la probabilidad de la doble oportunidad correspondiente.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "doble oportunidad",
+    "1x",
+    "x2"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-tarjetas-corners-tiros",
+  "content": "Tiros, tiros al arco, córners y tarjetas: estadísticas de juego que algunos perfiles incluyen como promedio a favor y en contra por partido, solo cuando la fuente tiene al menos cinco partidos con ese dato. Muchas ligas, sobre todo las sudamericanas y asiáticas, no las traen.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "tarjetas",
+    "amarillas",
+    "rojas",
+    "corners",
+    "tiros",
+    "tiros al arco"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-pick",
+  "content": "Pick: el resultado (local, empate o visitante) con mayor probabilidad ponderada. Los Top Picks son los picks que superan los controles de calidad, hoy una probabilidad ponderada de al menos 50%. Es información de análisis, no una recomendación de apostar.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "pick",
+    "picks",
+    "top picks",
+    "top pick"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-1x2",
+  "content": "1X2: los tres desenlaces de un partido en tiempo reglamentario: 1 gana el local, X empate, 2 gana el visitante.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "1x2",
+    "resultado final",
+    "local empate visitante"
+   ]
+  }
+ }
+]

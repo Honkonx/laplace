@@ -1,0 +1,100 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite3
+venv/
+.venv/
+.venv_backend/
+*.pytest_cache/
+.coverage
+
+# Node
+node_modules/
+.npm
+.eslintcache
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Android
+app-android/.gradle/
+app-android/.gradle-home/
+tools/go-runtime-benchmark/*.exe
+app-android/.kotlin/
+app-android/app/build/
+app-android/local.properties
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# Coverage (JS/TS — frontend/pwa)
+coverage/
+
+# n8n
+n8n_data/
+
+# Logs
+*.log
+
+# Temporary
+/tmp/
+backups/
+
+# Salidas scratch de scripts de verificación empírica (backend/scripts/verificar_*.py) —
+# regenerables corriendo el script contra el backend real, no son fuente de verdad de nada.
+backend/scripts/_reporte_datos_reales.json
+backend/scripts/_reporte_calibracion.json
+backend/scripts/_tmp_partidos.json
+backend/scripts/_uvicorn_out.log
+backend/scripts/_uvicorn_err.log
+
+# Proyectos de terceros para auditoría de referencia (2026-09-07) — código ajeno, no versionar
+# (134MB+). Auditorías reales están en docs/referencia/proyectos-externos/, sí versionadas.
+/referencias/
+
+# Copia real de backend/+pwa/ para probar en el teléfono (Termux) — 2026-09-10, orden explícita
+# del usuario de incluir el .env REAL adentro (es su propio dispositivo). NUNCA debe llegar a
+# git/GitHub por eso mismo — regenerable con android-test/sync.bat, no es fuente de verdad de
+# nada (el código real vive en backend/ y pwa/). Ver .claude/rules/verificar-secretos-antes-de-push.md.
+/android-test/
+
+# football-data.co.uk crudo (35 MB, regenerable desde la fuente original) —
+# solo se versiona el normalizado (partidos.csv.gz), equipos_alias.json y RESUMEN.md.
+backend/data/datos/football-data/raw/
+
+# Archivo local con API keys reales pegadas en texto plano — nunca versionar
+apis futbol.txt
+
+# Temporales de QA/pytest: una sola carpeta en la raiz (regenerable, nunca versionar)
+.qa/
+.qa-*/
+.tmp_pytest_session/
+
+# Crudos de api-football y football-data.org: licencia no abierta para redistribuir (solo se versiona lo normalizado). Regenerables desde su fuente original
+backend/data/datos/api-football/raw/
+backend/data/datos/football-data-org/raw/
+
+# Instalación portable (2026-11-09): runtimes descargados y paquetes generados
+runtime/
+dist-portable/

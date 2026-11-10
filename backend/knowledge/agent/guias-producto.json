@@ -1,0 +1,178 @@
+[
+ {
+  "namespace": "futbol",
+  "topic_key": "guia-leer-prediccion",
+  "content": "Cómo leer una predicción de Laplace: el pick es el resultado con mayor probabilidad ponderada. Mira la probabilidad ponderada (por ejemplo local 52%, empate 27%, visitante 21%), la confianza (ALTA, MEDIA o BAJA, según esa probabilidad), los modelos usados y la referencia histórica de la liga. Una probabilidad de 52% significa que de cada 100 partidos así, el pick debería acertar alrededor de 52 y fallar en 48. Es una estimación estadística, no una certeza, y no es una recomendación de apuesta.",
+  "source": "guias-producto.json",
+  "metadata": {
+   "tipo": "guia",
+   "terminos": [
+    "como leer una prediccion",
+    "leer prediccion",
+    "como interpretar",
+    "que significa el pick",
+    "como funciona la prediccion"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "guia-confianza-frecuencias",
+  "content": "Qué significa cada nivel de confianza, según el histórico medido con partidos reales (evaluación walk-forward desde 2023-07-01, sin ver el futuro): ALTA, probabilidad ponderada de 60% o más, el pick acertó cerca de 72%; MEDIA, entre 50% y 60%, acertó cerca de 57%; BAJA, menos de 50%, acertó 46% o menos. Para comparar, elegir siempre al local acierta cerca de 43%. Estas frecuencias son pasadas; no garantizan ningún partido concreto.",
+  "source": "guias-producto.json",
+  "metadata": {
+   "tipo": "guia",
+   "terminos": [
+    "confianza alta",
+    "confianza media",
+    "confianza baja",
+    "que significa confianza",
+    "que significa alta",
+    "que significa media",
+    "que significa baja",
+    "cuanto acierta"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "guia-limitaciones-modelo",
+  "content": "Limitaciones del modelo: no conoce lesiones, alineaciones, clima, motivación ni cambios de entrenador. Con cuotas disponibles, el mercado fue más difícil de superar que cualquier modelo propio; sin cuotas, el mejor módulo es el histórico Dixon-Coles. Las ligas sin cuotas o con datos de años atrás tienen menos precisión y el bot lo avisa. Un partido aislado tiene mucha incertidumbre: incluso con confianza ALTA el pick falló cerca de 28% de las veces. Las probabilidades se miden contra la tasa base y el mercado antes de usarse; un LLM no produce probabilidades.",
+  "source": "guias-producto.json",
+  "metadata": {
+   "tipo": "guia",
+   "terminos": [
+    "limitaciones",
+    "limites del modelo",
+    "que no sabe",
+    "es confiable",
+    "cuan confiable",
+    "se equivoca",
+    "precision del modelo"
+   ]
+  }
+ },
+ {
+  "namespace": "laplace",
+  "topic_key": "faq-origen-datos",
+  "content": "De dónde salen los datos: el histórico de partidos (154.421 partidos de 49 ligas y copas) se arma con football-data.co.uk, api-football (plan gratuito, temporadas 2022 a 2024), football-data.org y openfootball. Las cuotas y los partidos del día vienen de proveedores externos configurados en el servidor. Los perfiles de equipo y las tasas base se calculan de ese histórico y cada uno indica hasta qué fecha llegan sus datos.",
+  "source": "guias-producto.json",
+  "metadata": {
+   "tipo": "faq",
+   "terminos": [
+    "de donde salen los datos",
+    "fuente de datos",
+    "origen de los datos",
+    "quien da los datos",
+    "proveedores de datos"
+   ]
+  }
+ },
+ {
+  "namespace": "laplace",
+  "topic_key": "faq-actualizacion-datos",
+  "content": "Cada cuánto se actualiza: las cuotas se refrescan dos veces al día (07:15 y 15:15 hora de Chile) con un presupuesto diario de peticiones. El histórico, los perfiles de equipo y las tasas base se regeneran con scripts cuando se actualiza el histórico; no es un proceso diario. Por eso cada perfil muestra la fecha de su último partido y un aviso cuando está desactualizado. Algunas ligas (Chile, Perú, Uruguay, Bolivia, Venezuela, Corea y Arabia Saudita) solo tienen datos hasta 2024 o inicios de 2025.",
+  "source": "guias-producto.json",
+  "metadata": {
+   "tipo": "faq",
+   "terminos": [
+    "cada cuanto se actualiza",
+    "actualizacion",
+    "datos desactualizados",
+    "datos viejos",
+    "frescura",
+    "que tan actual"
+   ]
+  }
+ },
+ {
+  "namespace": "laplace",
+  "topic_key": "faq-cobertura-ligas",
+  "content": "Qué cubre Laplace: 45 ligas domésticas de Europa, América y Asia, entre ellas Premier League, LaLiga, Serie A, Bundesliga, Ligue 1, Liga Profesional Argentina, Brasileirão, Liga MX, MLS y las primeras divisiones de Chile, Colombia, Perú, Uruguay, Ecuador, Paraguay, Bolivia y Venezuela. Qué no cubre: ligas fuera de esa lista, fútbol femenino, categorías juveniles, partidos amistosos y deportes distintos del fútbol. Si una liga o un equipo no está cubierto, el bot lo dice y no inventa un pronóstico.",
+  "source": "guias-producto.json",
+  "metadata": {
+   "tipo": "faq",
+   "terminos": [
+    "que ligas cubre",
+    "que ligas cubres",
+    "que ligas cubren",
+    "que ligas analizas",
+    "ligas cubiertas",
+    "cobertura",
+    "que ligas hay",
+    "ligas disponibles",
+    "que cubre",
+    "que no cubre",
+    "liga no cubierta"
+   ]
+  }
+ },
+ {
+  "namespace": "laplace",
+  "topic_key": "faq-copas",
+  "content": "Copas: el histórico incluye partidos de Champions League, Europa League, Copa Libertadores y Copa Sudamericana, y de cada una hay tasas base (resultados y goles por partido), pero los perfiles de equipo se calculan solo con la liga doméstica: en copas no hay perfil de equipo. Otras copas nacionales no están cubiertas.",
+  "source": "guias-producto.json",
+  "metadata": {
+   "tipo": "faq",
+   "terminos": [
+    "copas",
+    "champions",
+    "libertadores",
+    "sudamericana",
+    "europa league",
+    "copa del rey",
+    "copa"
+   ]
+  }
+ },
+ {
+  "namespace": "laplace",
+  "topic_key": "faq-no-es-casa-de-apuestas",
+  "content": "Laplace es un servicio de pronósticos y análisis: no es una casa de apuestas, no recibe dinero para apostar, no custodia fondos ni intermedia apuestas. Las cuotas se usan solo como dato del análisis estadístico. Ningún pronóstico es una promesa de ganancia y el bot no recomienda apostar.",
+  "source": "guias-producto.json",
+  "metadata": {
+   "tipo": "faq",
+   "terminos": [
+    "casa de apuestas",
+    "apostar",
+    "apuesta",
+    "ganar dinero",
+    "dinero seguro",
+    "es seguro",
+    "recomiendas apostar",
+    "debo apostar"
+   ]
+  }
+ },
+ {
+  "namespace": "laplace",
+  "topic_key": "faq-por-que-comparar-con-mercado",
+  "content": "Por qué se compara contra el mercado: las cuotas recogen mucha información (lesiones, alineaciones, dinero) y en la evaluación histórica ningún modelo propio las superó; un modelo que no mejora al mercado no aporta información nueva. Por eso Laplace mide cada cambio del motor contra la tasa base y contra las cuotas sin margen antes de usarlo, y solo promueve un modelo cuando lo respaldan partidos reales.",
+  "source": "guias-producto.json",
+  "metadata": {
+   "tipo": "faq",
+   "terminos": [
+    "por que el mercado",
+    "comparar con el mercado",
+    "mejor que el mercado",
+    "le gana al mercado",
+    "evaluacion",
+    "como se mide"
+   ]
+  }
+ },
+ {
+  "namespace": "laplace",
+  "topic_key": "faq-sin-pronostico",
+  "content": "Por qué a veces dice «Sin pronóstico»: porque ningún modelo tiene datos suficientes del partido (liga o equipos fuera de la cobertura, sin cuotas y sin histórico). Es una decisión deliberada: un resultado inventado sería peor que no dar ninguno. Puedes pedir el perfil del equipo o las tasas base de su liga si existen.",
+  "source": "guias-producto.json",
+  "metadata": {
+   "tipo": "faq",
+   "terminos": [
+    "sin pronostico",
+    "por que no hay pronostico",
+    "no da pronostico"
+   ]
+  }
+ }
+]

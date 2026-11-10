@@ -1,0 +1,5 @@
+[
+  {"namespace": "futbol", "topic_key": "scope", "content": "El bot deportivo actual se especializa en fútbol: ligas, temporadas, equipos, partidos, estadísticas, cuotas, predicciones y resultados.", "source": "football-domain"},
+  {"namespace": "futbol", "topic_key": "methodology", "content": "Las predicciones deben mostrar procedencia, probabilidades, confianza y límites de muestra. No se debe presentar una predicción como certeza.", "source": "football-domain"},
+  {"namespace": "futbol", "topic_key": "future-sports", "content": "Otros deportes podrán añadirse como dominios independientes sin convertir al bot de fútbol en un agente universal.", "source": "football-domain"}
+]

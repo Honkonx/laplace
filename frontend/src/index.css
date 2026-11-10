@@ -1,0 +1,179 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap");
+@import "tailwindcss";
+
+/* Sistema de diseño de la web de Laplace.
+   - Los valores viven en variables CSS (`--t-*`) por tema; Tailwind los expone como utilidades
+     (`bg-surface`, `text-text-muted`, `border-border`…) a través de `@theme inline`, así que
+     las páginas existentes (admin, simulador) cambian de tema sin tocarse.
+   - Tema: sigue `prefers-color-scheme`; `data-theme="light|dark"` en <html> lo fuerza
+     (selector manual en components/ThemeToggle.tsx).
+   - Contraste medido contra AA (4.5:1 texto normal) en ambos temas; el color nunca es el único
+     portador de significado (siempre hay texto o número al lado). */
+
+:root {
+  color-scheme: light;
+  --t-bg: #f4f5f3;
+  --t-surface: #ffffff;
+  --t-surface-light: #eceeec;
+  --t-surface-hover: #e2e6e3;
+  --t-border: #cfd5d1;
+  --t-text: #14201b;
+  --t-text-muted: #4a5953;
+  --t-text-dim: #5d6b65;
+  --t-accent: #16664a;
+  --t-on-accent: #ffffff;
+  --t-alta: #13763f;
+  --t-media: #915400;
+  --t-baja: #b42318;
+  --t-local: #16664a;
+  --t-draw: #8d9893;
+  --t-away: #2b3631;
+  --t-focus: #16664a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --t-bg: #0e1311;
+    --t-surface: #151c19;
+    --t-surface-light: #1d2622;
+    --t-surface-hover: #26322d;
+    --t-border: #2d3a35;
+    --t-text: #e8eeea;
+    --t-text-muted: #a5b2ac;
+    --t-text-dim: #8c9993;
+    --t-accent: #46b784;
+    --t-on-accent: #07140e;
+    --t-alta: #55c68f;
+    --t-media: #e2a73c;
+    --t-baja: #f0796b;
+    --t-local: #46b784;
+    --t-draw: #66726d;
+    --t-away: #d9e0dc;
+    --t-focus: #6fd0a3;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --t-bg: #0e1311;
+  --t-surface: #151c19;
+  --t-surface-light: #1d2622;
+  --t-surface-hover: #26322d;
+  --t-border: #2d3a35;
+  --t-text: #e8eeea;
+  --t-text-muted: #a5b2ac;
+  --t-text-dim: #8c9993;
+  --t-accent: #46b784;
+  --t-on-accent: #07140e;
+  --t-alta: #55c68f;
+  --t-media: #e2a73c;
+  --t-baja: #f0796b;
+  --t-local: #46b784;
+  --t-draw: #66726d;
+  --t-away: #d9e0dc;
+  --t-focus: #6fd0a3;
+}
+
+@theme inline {
+  --color-bg: var(--t-bg);
+  --color-surface: var(--t-surface);
+  --color-surface-light: var(--t-surface-light);
+  --color-surface-hover: var(--t-surface-hover);
+  --color-border: var(--t-border);
+  --color-text: var(--t-text);
+  --color-text-muted: var(--t-text-muted);
+  --color-text-dim: var(--t-text-dim);
+  --color-accent: var(--t-accent);
+  --color-on-accent: var(--t-on-accent);
+  --color-conf-alta: var(--t-alta);
+  --color-conf-media: var(--t-media);
+  --color-conf-baja: var(--t-baja);
+  --color-local: var(--t-local);
+  --color-draw: var(--t-draw);
+  --color-away: var(--t-away);
+
+  --font-display: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+}
+
+:root {
+  --header-h: 3.5rem;
+  --tabbar-h: 3.5rem;
+}
+
+body {
+  background-color: var(--t-bg);
+  color: var(--t-text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { font-weight: 600; letter-spacing: -0.01em; }
+
+::selection { background-color: var(--t-accent); color: var(--t-on-accent); }
+
+/* Foco visible y consistente para teclado */
+:focus-visible {
+  outline: 2px solid var(--t-focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ---- Componentes base (clases propias, no utilidades) ---- */
+@layer components {
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+    min-height: 44px; padding: 0 1rem; border-radius: 8px;
+    font-size: 0.875rem; font-weight: 500; line-height: 1;
+    border: 1px solid var(--t-border); background: var(--t-surface); color: var(--t-text);
+    cursor: pointer; transition: background-color 120ms, border-color 120ms, color 120ms;
+    white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--t-surface-hover); }
+  .btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  .btn-primary { background: var(--t-accent); border-color: var(--t-accent); color: var(--t-on-accent); }
+  .btn-primary:hover:not(:disabled) { background: var(--t-accent); filter: brightness(1.08); }
+  .btn-ghost { border-color: transparent; background: transparent; color: var(--t-text-muted); }
+  .btn-ghost:hover:not(:disabled) { background: var(--t-surface-light); color: var(--t-text); }
+  .btn-sm { min-height: 36px; padding: 0 0.75rem; font-size: 0.8125rem; }
+  .btn-icon { min-width: 44px; padding: 0; }
+
+  .field {
+    width: 100%; min-height: 44px; padding: 0 0.75rem; border-radius: 8px;
+    border: 1px solid var(--t-border); background: var(--t-surface); color: var(--t-text);
+    font-size: 0.9375rem;
+  }
+  textarea.field { padding: 0.65rem 0.75rem; min-height: 44px; resize: none; line-height: 1.45; }
+  .field::placeholder { color: var(--t-text-dim); }
+  .field:focus-visible { outline: 2px solid var(--t-focus); outline-offset: 0; border-color: var(--t-focus); }
+
+  .panel { border: 1px solid var(--t-border); background: var(--t-surface); border-radius: 10px; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: 0.35rem;
+    padding: 0.15rem 0.5rem; border-radius: 6px; font-size: 0.75rem; line-height: 1.4;
+    border: 1px solid var(--t-border); color: var(--t-text-muted); background: var(--t-surface);
+  }
+
+  .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes laplace-dot {
+  0%, 80%, 100% { opacity: 0.25; }
+  40% { opacity: 1; }
+}
+.typing-dot { animation: laplace-dot 1.2s infinite ease-in-out; }
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.3s; }

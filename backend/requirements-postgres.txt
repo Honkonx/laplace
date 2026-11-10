@@ -1,0 +1,4 @@
+# backend/requirements-postgres.txt — solo si DATABASE_URL apunta a Postgres (VPS). El modo normal usa SQLite.
+-r requirements.txt
+
+psycopg[binary]==3.2.3

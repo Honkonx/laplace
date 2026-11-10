@@ -1,0 +1,6 @@
+# Los scripts de shell necesitan LF aunque se editen o se clonen en Windows (con CRLF bash falla: "$'r: command not found").
+*.sh text eol=lf
+# Los de Windows, CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf

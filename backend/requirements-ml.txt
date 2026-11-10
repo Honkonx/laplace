@@ -1,0 +1,8 @@
+# backend/requirements-ml.txt — dependencias SOLO para entrenar y evaluar (offline).
+#
+# El bot en ejecución NO las necesita: `backend/api/ml/dixon_coles.py::probabilidades` y
+# `services/modelo_historico.py` son Python puro y leen artefactos JSON. Instalar esto solo para
+# correr `backend/scripts/evaluar_modelo_historico.py` y regenerar `backend/api/ml/artefactos/`.
+numpy>=2.0
+scipy>=1.13
+scikit-learn>=1.5

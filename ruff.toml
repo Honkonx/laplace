@@ -1,0 +1,18 @@
+# Solo errores reales: sintaxis, pyflakes y dos trampas de argumentos por defecto.
+extend-exclude = ["alembic/versions", "**/alembic/versions", "__pycache__", "runtime", ".venv*", "node_modules", "**/_archive*"]
+line-length = 100
+
+[lint]
+select = ["E9", "F", "B006", "B008"]
+ignore = ["E501"]
+
+[lint.flake8-bugbear]
+# FastAPI inyecta dependencias con Depends/Query/etc. como valor por defecto.
+extend-immutable-calls = [
+    "fastapi.Depends", "fastapi.Query", "fastapi.Body", "fastapi.Header",
+    "fastapi.Path", "fastapi.Form", "fastapi.File", "fastapi.Security", "fastapi.Cookie",
+]
+
+[lint.per-file-ignores]
+# Las pruebas reimportan fixtures de otro módulo y los reciben como parámetro (patrón pytest).
+"backend/tests/*" = ["F811"]
