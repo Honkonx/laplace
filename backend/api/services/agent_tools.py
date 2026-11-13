@@ -14,7 +14,7 @@ from typing import Any
 import httpx
 
 from backend.api.core.config import settings
-from backend.api.services import conocimiento_equipos, conocimiento_referencia, conocimiento_texto
+from backend.api.services import agent_piezas, conocimiento_equipos, conocimiento_referencia, conocimiento_texto, pronostico_conjunto
 from backend.api.services.agent_guard import consumir_prediccion, host_confiable
 from backend.api.services.ligas import LIGAS
 
@@ -38,15 +38,40 @@ SPORTS_TOOLS = (
     SportsTool("knowledge.team_profile", "Perfil de un equipo calculado del histórico: forma, goles, local/visitante y frescura del dato.", True, False),
     SportsTool("knowledge.league_profile", "Tasas base, cobertura y frescura de una liga.", True, False),
     SportsTool("knowledge.glossary", "Definición de un término, guía o pregunta frecuente del producto.", True, False),
+    SportsTool("sports.recent_results", "Últimos resultados terminados de un equipo según la base local (solo lectura, máximo 10).", True, False),
+    SportsTool("knowledge.compare_teams", "Perfiles de dos equipos lado a lado (forma, goles, local/visitante); no pronostica.", True, False),
+    SportsTool("modelo.pronosticar", "Pronóstico del modelo Laplace (1X2, goles esperados, marcadores, ambos marcan, más/menos). Solo pronostica: publicar es decisión del agente.", True, False),
     SportsTool("sports.results", "Verifica resultados pendientes del bot.", False, True, True),
     SportsTool("sports.top_picks", "Genera Top Picks y opcionalmente prepara su publicación.", False, True, True),
     SportsTool("sports.publish", "Publica Top Picks en el canal de Telegram.", False, True, True),
 )
 
+PLAZO_MODELO_SEGUNDOS = 8.0  # plazo propio del modelo dentro de la consulta en paralelo
+PLAZO_BOT_SEGUNDOS = 60.0  # el bot ya limita sus propias consultas externas (hasta ~45 s)
 _READ_CACHE: dict[str, tuple[float, dict]] = {}
 _REQUEST_WINDOW: list[float] = []
 _CACHE_TTL_SECONDS = 15.0
 _MAX_REQUESTS_PER_MINUTE = 60
+
+
+def _politica_publicacion(resultado: dict) -> dict:
+    """Decisión de `agent_politica_publicacion` sobre la vista previa de Top Picks. Nunca rompe la herramienta: ante un fallo devuelve el caso conservador."""
+    import os
+
+    from backend.api.services import agent_politica_publicacion as politica
+
+    try:
+        from sqlalchemy import func
+
+        from backend.api.db.session import SessionLocal
+        from backend.api.models.predicciones import PronosticoExperimental as Obs
+
+        with SessionLocal() as db:
+            evidencia = int(db.query(func.count(Obs.id)).filter(Obs.variante == "python_baseline", Obs.log_loss.is_not(None)).scalar() or 0)
+    except Exception:  # noqa: BLE001
+        evidencia = 0
+    habilitado = os.getenv("AGENTE_PUBLICA_SOLO", "0").strip().lower() in {"1", "true", "si", "sí", "on"}
+    return politica.evaluar((resultado.get("resultado") or resultado) if isinstance(resultado, dict) else {}, evidencia, habilitado)
 
 
 def _controlar_limite() -> None:
@@ -84,6 +109,10 @@ def _ejecutar_conocimiento(nombre: str, argumentos: dict[str, Any]) -> dict:
     """Herramientas `knowledge.*`: respuesta determinista desde `knowledge/`, sin red ni IA.
 
     Devuelve `data` (estructura para pintar), `texto` (mensaje listo para chat) y `estado`."""
+    if nombre == "knowledge.compare_teams":
+        from backend.api.services import agent_tools_extra
+
+        return agent_tools_extra.comparar_perfiles(_texto_argumento(argumentos, "team_a") or "", _texto_argumento(argumentos, "team_b") or "")
     if nombre == "knowledge.team_profile":
         data = conocimiento_equipos.perfil_equipo(_texto_argumento(argumentos, "team", "equipo") or "", _texto_argumento(argumentos, "league", "liga", requerido=False))
         texto = conocimiento_texto.texto_equipo(data)
@@ -141,7 +170,80 @@ def _filtrar_partidos(data: dict, args: dict[str, Any]) -> list[dict]:
     return resultado[:limit]
 
 
+class PiezaEnPausa(RuntimeError):
+    """La pieza (bot o modelo) falló varias veces seguidas y está en pausa unos segundos: no se la llama para no esperar su plazo completo en cada mensaje."""
+
+
+def _pieza_de(path: str) -> str:
+    return "modelo" if path.startswith("/api/v1/ml/") else "bot"
+
+
+def registro_de_piezas() -> agent_piezas.RegistroPiezas:
+    """Registro de piezas del proceso, con el bot, el modelo y la IA dados de alta la primera vez."""
+    registro = agent_piezas.registro_global()
+    if not registro.registrada("bot"):
+        async def comprobar_bot():
+            r = await consultar_capacidades_deportivas()
+            return {"ok": bool(r.get("available")), "motivo": r.get("reason", "")}
+
+        async def comprobar_modelo():
+            if settings.AGENT_MODELO_EN_PROCESO and _modelo_en_proceso_disponible():
+                return {"ok": True}
+            try:
+                async with httpx.AsyncClient(timeout=2.0) as client:
+                    r = await client.get(f"{settings.SPORTS_BACKEND_URL.rstrip('/')}/api/v1/ml/health")
+                    r.raise_for_status()
+                    return {"ok": bool(r.json().get("modelo_activo")), "motivo": "sin modelo activo" if not r.json().get("modelo_activo") else ""}
+            except Exception as exc:  # noqa: BLE001
+                return {"ok": False, "motivo": type(exc).__name__}
+
+        async def comprobar_ia():
+            from backend.api.services import ai_client
+
+            return {"ok": any(ai_client._PROVEEDORES[n].configurado() for n in ai_client.orden_proveedores("agente")), "motivo": "sin proveedor de IA configurado"}  # noqa: SLF001
+
+        registro.registrar("bot", "bot", comprobar_bot)
+        registro.registrar("modelo", "modelo", comprobar_modelo)
+        registro.registrar("ia", "ia", comprobar_ia)
+    return registro
+
+
+async def estado_de_piezas() -> list[dict]:
+    """Comprueba ahora cada pieza (con plazo) y devuelve su resumen para `/estado`."""
+    registro = registro_de_piezas()
+    await registro.comprobar_todas()
+    return registro.resumen()
+
+
+async def _con_pieza(pieza: str, llamada):
+    """Llama a una pieza respetando su circuit breaker. Un 4xx o un permiso denegado no es una falla de la pieza (ella respondió)."""
+    registro = registro_de_piezas()
+    if not registro.permitir(pieza):
+        raise PiezaEnPausa(f"{pieza} en pausa por fallos recientes")
+    inicio = time.monotonic()
+    try:
+        valor = await llamada()
+    except PermissionError:
+        registro.exito(pieza, (time.monotonic() - inicio) * 1000)
+        raise
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code < 500:
+            registro.exito(pieza, (time.monotonic() - inicio) * 1000)
+        else:
+            registro.fallo(pieza, f"HTTP {exc.response.status_code}")
+        raise
+    except Exception as exc:
+        registro.fallo(pieza, type(exc).__name__)
+        raise
+    registro.exito(pieza, (time.monotonic() - inicio) * 1000)
+    return valor
+
+
 async def _get(path: str, params: dict[str, Any] | None = None) -> dict:
+    return await _con_pieza(_pieza_de(path), lambda: _get_http(path, params))
+
+
+async def _get_http(path: str, params: dict[str, Any] | None = None) -> dict:
     url = f"{settings.SPORTS_BACKEND_URL.rstrip('/')}{path}"
     cache_key = f"{url}?{sorted((params or {}).items())}"
     cached = _READ_CACHE.get(cache_key)
@@ -165,6 +267,10 @@ async def _get(path: str, params: dict[str, Any] | None = None) -> dict:
 
 
 async def _post(path: str, payload: dict[str, Any], params: dict[str, Any] | None = None, authorization: str | None = None) -> dict:
+    return await _con_pieza(_pieza_de(path), lambda: _post_http(path, payload, params, authorization))
+
+
+async def _post_http(path: str, payload: dict[str, Any], params: dict[str, Any] | None = None, authorization: str | None = None) -> dict:
     url = f"{settings.SPORTS_BACKEND_URL.rstrip('/')}{path}"
     if authorization and not host_confiable(url):
         # Nunca se reenvía una credencial a un destino que no sea loopback o esté en la lista.
@@ -253,6 +359,63 @@ async def consultar_capacidades_deportivas() -> dict:
         return {"available": False, "url": url, "reason": type(exc).__name__}
 
 
+async def _resumen_modelo(argumentos: dict[str, Any]) -> dict | None:
+    """Pronóstico compacto del modelo Laplace para acompañar al del bot; None si el modelo no responde o no cubre el partido (el agente sigue con el bot)."""
+    from backend.api.ml.laplace.servicio import resumen_para_consumidores
+
+    r = await _pronosticar_con_modelo({"local": argumentos.get("local"), "visitante": argumentos.get("visitante"), "league": argumentos.get("league")})
+    return resumen_para_consumidores(r) if r.get("ok") else None  # el plazo lo pone el orquestador
+
+
+def _modelo_en_proceso_disponible() -> bool:
+    try:
+        from backend.api.ml.laplace import registro
+
+        return registro.cargar_vigente_archivo()[1] is not None
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _modelo_en_proceso(local: str, visitante: str, liga: str) -> tuple[dict | None, str | None]:
+    """(pronóstico, motivo): el modelo Laplace calculado AQUÍ (Python puro, sin red ni base), con la salida de `servicio.publico`.
+    `motivo` distingue «no_disponible» (no hay modelo cargado o falló: ESO es una falla de la pieza) de «sin_cobertura» (el modelo está sano pero no conoce ese partido: lo decide la
+    entrada del usuario y NO debe contar contra el circuit breaker, o cualquiera podría abrirlo pidiendo equipos inventados)."""
+    try:
+        from backend.api.ml.laplace import servicio
+
+        _info, art, _motivo = servicio._modelo_vigente(None)  # noqa: SLF001
+        if art is None:
+            return None, "no_disponible"
+        r = servicio.pronosticar_partido(None, {"local": local, "visitante": visitante, "liga": liga}, canal="http")
+        return (servicio.publico(r), None) if r.get("ok") else (None, "sin_cobertura")
+    except Exception:  # noqa: BLE001 — el modelo es una pieza independiente: si falla se intenta por HTTP
+        return None, "no_disponible"
+
+
+async def _pronosticar_con_modelo(argumentos: dict[str, Any]) -> dict:
+    """Pide el pronóstico al modelo Laplace por HTTP. Si el modelo no responde NO falla el agente: devuelve `degradado` y el agente sigue con el consenso del bot."""
+    local = _texto_argumento(argumentos, "local", "home")
+    visitante = _texto_argumento(argumentos, "visitante", "away")
+    liga = _texto_argumento(argumentos, "league", "liga", requerido=False) or ""
+    if settings.AGENT_MODELO_EN_PROCESO:
+        registro = registro_de_piezas()
+        if registro.permitir("modelo"):
+            inicio = time.monotonic()
+            local_r, motivo_local = _modelo_en_proceso(local, visitante, liga)
+            if local_r is not None:
+                registro.exito("modelo", (time.monotonic() - inicio) * 1000)
+                return {"tool": "modelo.pronosticar", **local_r, "via": "proceso"}
+            if motivo_local == "sin_cobertura":  # el modelo respondió sano: que no conozca el partido no es una falla suya
+                registro.exito("modelo", (time.monotonic() - inicio) * 1000)
+                return {"tool": "modelo.pronosticar", "ok": False, "degradado": True, "motivo": "el modelo Laplace no cubre este partido", "alternativa": "sports.predict", "via": "proceso"}
+            registro.fallo("modelo", "modelo no cargado en el proceso del agente")
+    try:
+        data = await _post("/api/v1/ml/predict", {"local": local, "visitante": visitante, "liga": liga})
+    except Exception as exc:  # noqa: BLE001 — el modelo es una pieza independiente: su caída se informa, no se propaga
+        return {"ok": False, "tool": "modelo.pronosticar", "degradado": True, "motivo": f"el modelo Laplace no respondió ({type(exc).__name__})", "alternativa": "sports.predict"}
+    return {"tool": "modelo.pronosticar", **data}
+
+
 async def ejecutar_herramienta_deportiva(nombre: str, argumentos: dict[str, Any], *, es_admin: bool = False, authorization: str | None = None, aprobado: bool = False, usuario: str | None = None) -> dict:
     """Ejecuta una herramienta del catálogo con validaciones comunes.
 
@@ -277,6 +440,9 @@ async def ejecutar_herramienta_deportiva(nombre: str, argumentos: dict[str, Any]
 
     if nombre.startswith("knowledge."):
         return _ejecutar_conocimiento(nombre, argumentos)
+
+    if nombre == "modelo.pronosticar":
+        return await _pronosticar_con_modelo(argumentos)
 
     if nombre == "sports.list_leagues":
         return {
@@ -312,16 +478,30 @@ async def ejecutar_herramienta_deportiva(nombre: str, argumentos: dict[str, Any]
             raise ValueError(f"{nombre} requiere: {', '.join(missing)}")
         if not authorization:
             raise PermissionError("La predicción del bot requiere una sesión de usuario válida")
-        data = await _post("/api/v1/prediccion-web", {
+        solicitud_bot = {
             "match_id": str(argumentos["match_id"]),
             "local": str(argumentos["local"]),
             "visitante": str(argumentos["visitante"]),
             "liga": str(argumentos["league"]),
             "fecha": _fecha(argumentos.get("date")),
-        }, authorization=authorization)
+        }
         if nombre == "sports.get_odds":
+            data = await _post("/api/v1/prediccion-web", solicitud_bot, authorization=authorization)
             return {"ok": True, "tool": nombre, "match_id": argumentos["match_id"], "odds": data.get("odds_info", {})}
-        return {"ok": True, "tool": nombre, "prediction": data, "resumen": resumir_prediccion(data, {"liga": argumentos["league"], "local": argumentos["local"], "visitante": argumentos["visitante"]})}
+        # EN PARALELO (orquestador `pronostico_conjunto`): el bot y el modelo Laplace no se esperan ni dependen uno del otro; cada uno con su plazo y su fallo es solo suyo.
+        conjunto = await pronostico_conjunto.ejecutar(
+            {"bot": lambda: _post("/api/v1/prediccion-web", solicitud_bot, authorization=authorization), "modelo": lambda: _resumen_modelo(argumentos)},
+            plazos={"bot": PLAZO_BOT_SEGUNDOS, "modelo": PLAZO_MODELO_SEGUNDOS})
+        modelo, bot = conjunto.valor("modelo"), conjunto.paralelas["bot"]
+        if not bot.ok:
+            if modelo is None:
+                raise bot.error  # no respondió ninguna de las dos piezas: se informa el error del bot, como siempre
+            resumen = {"pick": None, "bot_disponible": False, "modelo_laplace": modelo,
+                       "motivos_sin_pronostico": ["el bot no respondió; esta es solo la lectura del modelo Laplace"]}
+            return {"ok": True, "tool": nombre, "prediction": None, "resumen": resumen, "piezas": conjunto.resumen()}
+        resumen = resumir_prediccion(bot.valor, {"liga": argumentos["league"], "local": argumentos["local"], "visitante": argumentos["visitante"]})
+        resumen["modelo_laplace"] = modelo
+        return {"ok": True, "tool": nombre, "prediction": bot.valor, "resumen": resumen, "piezas": conjunto.resumen()}
 
     if nombre == "sports.results":
         return {"ok": True, "tool": nombre, "result": await _post("/api/v1/resultados/verificar", {"fixture_ids": argumentos.get("fixture_ids", []), "fecha": argumentos.get("date", "")}, authorization=authorization)}
@@ -330,6 +510,10 @@ async def ejecutar_herramienta_deportiva(nombre: str, argumentos: dict[str, Any]
         publicar = nombre == "sports.publish" and argumentos.get("publish") is True
         if nombre == "sports.publish" and not publicar:
             raise ValueError("sports.publish requiere publish=true")
-        return {"ok": True, "tool": nombre, "result": await _post("/api/v1/scheduler/top-picks", {}, {"publicar": publicar}, authorization=authorization)}
+        resultado = await _post("/api/v1/scheduler/top-picks", {}, {"publicar": publicar}, authorization=authorization)
+        salida = {"ok": True, "tool": nombre, "result": resultado}
+        if not publicar:
+            salida["politica_publicacion"] = _politica_publicacion(resultado)  # recomendación del agente: el modelo y el bot solo pronostican
+        return salida
 
     raise ValueError(f"Herramienta no implementada: {nombre}")

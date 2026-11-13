@@ -148,8 +148,9 @@ def parsear_stages(stages: list[dict], fecha_bd: str) -> tuple[list[dict], list[
                 descartes["terminado_sin_marcador"] += 1
                 continue
             esd = str(ev.get("Esd", "") or "")
+            pais = str(stage.get("Cnm") or "").strip()
             partidos.append({
-                "match_id": match_id, "liga_slug": gateway.slug_de_liga(liga_nombre), "liga_nombre": liga_nombre,
+                "match_id": match_id, "liga_slug": gateway.slug_de_liga(liga_nombre, pais), "liga_nombre": liga_nombre, "liga_pais": pais or None,
                 "liga_logo": liga_logo, "local": local, "visitante": visitante,
                 "hora_chile": f"{esd[8:10]}:{esd[10:12]}" if len(esd) >= 12 else "",
                 "kick_off_utc": ev.get("kick_off_utc", "") or "",
@@ -159,7 +160,7 @@ def parsear_stages(stages: list[dict], fecha_bd: str) -> tuple[list[dict], list[
                 "goles_local": gl if estado != "scheduled" else None,
                 "goles_visitante": gv if estado != "scheduled" else None,
             })
-            meta.append({"stage_nombre": liga_nombre, "pais": str(stage.get("Cnm") or "")})
+            meta.append({"stage_nombre": liga_nombre, "pais": pais})
     return partidos, meta, descartes
 
 

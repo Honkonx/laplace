@@ -30,6 +30,10 @@ from sqlalchemy.orm import sessionmaker
 
 import backend.api.models  # noqa: F401  (registra todos los modelos en Base.metadata)
 from backend.api.bot import laplace_bot
+from backend.api.bot import laplace_bot_admin, laplace_bot_callbacks, laplace_bot_usuario
+
+# `SessionLocal` ya no vive solo en `laplace_bot`: cada módulo que abre sesión tiene su propio nombre.
+_MODULOS_CON_SESION = (laplace_bot_usuario, laplace_bot_callbacks, laplace_bot_admin)
 from backend.api.core.config import settings
 from backend.api.db.session import Base
 from backend.api.models.auditoria import AccionAdminAuditoria
@@ -46,7 +50,8 @@ def sesion_bot(monkeypatch):
     engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     Base.metadata.create_all(engine)
     testing_session_local = sessionmaker(bind=engine, autocommit=False, autoflush=False)
-    monkeypatch.setattr(laplace_bot, "SessionLocal", testing_session_local)
+    for modulo in _MODULOS_CON_SESION:
+        monkeypatch.setattr(modulo, "SessionLocal", testing_session_local)
     return testing_session_local
 
 
@@ -285,7 +290,7 @@ def test_callback_predict_bajo_limite_crea_job_y_lanza_analisis_en_fondo(sesion_
     monkeypatch.setattr(laplace_bot.telegram_client, "responder_callback", AsyncMock())
     monkeypatch.setattr(laplace_bot.jobs_repo, "crear_job", lambda db, **kwargs: {"job_id": "job123"})
     fondo_mock = AsyncMock()
-    monkeypatch.setattr(laplace_bot, "_procesar_job_en_fondo", fondo_mock)
+    monkeypatch.setattr(laplace_bot_callbacks, "_procesar_job_en_fondo", fondo_mock)
 
     update = _update_callback("PREDICT_20260101_m2", user_id="901")
     _run(laplace_bot.callback_predict(update, _context()))
@@ -303,7 +308,7 @@ def test_callback_predict_no_crea_job_si_ya_hay_uno_en_vuelo(sesion_bot, monkeyp
     monkeypatch.setattr(laplace_bot.telegram_client, "responder_callback", AsyncMock())
     crear_job_mock = MagicMock()
     monkeypatch.setattr(laplace_bot.jobs_repo, "crear_job", crear_job_mock)
-    limite_mock = MagicMock()
+    limite_mock = MagicMock(return_value={"puede": True, "usados": 0, "limite": 6})
     monkeypatch.setattr(laplace_bot.usuarios_repo, "verificar_limite", limite_mock)
 
     update = _update_callback("PREDICT_20260101_m3", user_id="902")
@@ -312,8 +317,8 @@ def test_callback_predict_no_crea_job_si_ya_hay_uno_en_vuelo(sesion_bot, monkeyp
     texto = _texto_respuesta(update.callback_query.message.reply_html)
     assert "Análisis en progreso" in texto
     crear_job_mock.assert_not_called()
-    # ni siquiera llega a chequear el límite — el dedup de job en vuelo corta antes
-    limite_mock.assert_not_called()
+    # el límite se revisa ANTES de anotar la espera (revisión de seguridad 2026-11-11): quien no tiene derecho no entra a la cola
+    limite_mock.assert_called_once()
 
 
 # ---------------------------------------------------------------------------------------------
@@ -402,7 +407,12 @@ def test_cmd_favoritos_no_duplica_la_misma_liga(sesion_bot):
 
 
 def test_cmd_favoritos_respeta_limite_maximo_de_tres(sesion_bot):
-    for liga in ("LaLiga", "Premier League", "Serie A"):
+    update0 = _update(user_id="802")
+    _run(laplace_bot.cmd_favoritos(update0, _context(["agregar", "LaLiga"])))   # esto registra a la persona (plan free: 1 liga)
+    with sesion_bot() as db:
+        db.query(Usuario).filter(Usuario.device_id == "802").update({"plan": "pro"})  # MS-11: el tope de 3 ligas es el del plan pro
+        db.commit()
+    for liga in ("Premier League", "Serie A"):
         update = _update(user_id="802")
         _run(laplace_bot.cmd_favoritos(update, _context(["agregar", liga])))
 
@@ -591,7 +601,7 @@ def test_callback_predict_refresh_ignora_cache_consenso_y_crea_job(sesion_bot, m
     monkeypatch.setattr(laplace_bot.telegram_client, "responder_callback", AsyncMock())
     monkeypatch.setattr(laplace_bot.jobs_repo, "crear_job", lambda db, **kwargs: {"job_id": "job_ref"})
     fondo_mock = AsyncMock()
-    monkeypatch.setattr(laplace_bot, "_procesar_job_en_fondo", fondo_mock)
+    monkeypatch.setattr(laplace_bot_callbacks, "_procesar_job_en_fondo", fondo_mock)
 
     update = _update_callback("REFRESH_20260101_m9", user_id="909")
     _run(laplace_bot.callback_predict(update, _context()))

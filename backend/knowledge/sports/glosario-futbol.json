@@ -296,5 +296,79 @@
     "local empate visitante"
    ]
   }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-consenso",
+  "content": "Consenso: es la forma en que Laplace junta varias lecturas de un partido (cuotas sin margen, modelo histórico Dixon-Coles y otras señales) en una sola probabilidad para local, empate y visitante, dando más peso a las que la evaluación histórica mostró más útiles. El pick es el resultado con mayor probabilidad del consenso. Es una estimación, no una certeza.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "consenso",
+    "que es el consenso",
+    "pick final"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-value-bet",
+  "content": "Value bet (valor): se dice que hay valor cuando la probabilidad que estima un modelo para un resultado es mayor que la implícita en la cuota. Laplace lo usa solo como dato de análisis dentro del pronóstico: no acepta dinero ni recomienda cuánto apostar, y un valor aparente puede ser un error del modelo.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "value bet",
+    "valor esperado",
+    "apuesta de valor",
+    "valor en la cuota"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-modelo-laplace",
+  "content": "Modelo Laplace: es el modelo estadístico propio del proyecto. Parte de un Elo y de las tasas de gol de cada equipo, las combina con una regresión logística entrenada con partidos reales de decenas de ligas y entrega probabilidades de local, empate y visitante, además de mercados de goles. Se mide siempre contra la tasa base y contra el mercado; la IA no calcula sus probabilidades.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "modelo laplace",
+    "modelo propio",
+    "como funciona el modelo",
+    "elo y regresion logistica"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-elo",
+  "content": "Elo: es una puntuación de fuerza de cada equipo que sube cuando gana y baja cuando pierde, más o menos según lo esperable que era el resultado y la diferencia de goles. Laplace la usa como una de las variables de su modelo propio junto con las tasas de gol; no es una predicción por sí sola.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "elo",
+    "puntuacion elo",
+    "que es el elo",
+    "rating elo"
+   ]
+  }
+ },
+ {
+  "namespace": "futbol",
+  "topic_key": "glosario-score",
+  "content": "Score: es un número de 0 a 100 que resume cuánto acuerdo y qué tan fuerte es la evidencia detrás de un pick (cuántos módulos coinciden y con qué peso). No es una probabilidad de acertar: la probabilidad es la que muestra el pronóstico; el score solo ordena qué tan sólido es el respaldo.",
+  "source": "glosario-futbol.json",
+  "metadata": {
+   "tipo": "glosario",
+   "terminos": [
+    "score",
+    "score del pick",
+    "puntaje del pick",
+    "para que sirve el score"
+   ]
+  }
  }
 ]

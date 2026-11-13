@@ -45,7 +45,7 @@ def leer_ligas_cache(db: Session, fecha_bd: str) -> dict:
     for fila in filas:
         slug = fila.liga_slug or "otras"
         if slug not in ligas:
-            ligas[slug] = {"nombre": fila.liga_nombre or slug, "logo": fila.liga_logo, "partidos": []}
+            ligas[slug] = {"nombre": fila.liga_nombre or slug, "pais": fila.liga_pais, "logo": fila.liga_logo, "partidos": []}
         ligas[slug]["partidos"].append(
             {
                 "match_id": fila.match_id,
@@ -95,6 +95,7 @@ def guardar_ligas_cache(db: Session, fecha_bd: str, partidos: list[dict]) -> int
                     liga_slug=p.get("liga_slug"),
                     liga_nombre=p.get("liga_nombre"),
                     liga_codigo=p.get("liga_codigo"),
+                    liga_pais=p.get("liga_pais"),
                     liga_logo=p.get("liga_logo"),
                     local=p.get("local"),
                     visitante=p.get("visitante"),
@@ -111,6 +112,7 @@ def guardar_ligas_cache(db: Session, fecha_bd: str, partidos: list[dict]) -> int
             existente.liga_slug = p.get("liga_slug", existente.liga_slug)
             existente.liga_nombre = p.get("liga_nombre", existente.liga_nombre)
             existente.liga_logo = p.get("liga_logo", existente.liga_logo)
+            existente.liga_pais = p.get("liga_pais", existente.liga_pais)
             existente.local = p.get("local", existente.local)
             existente.visitante = p.get("visitante", existente.visitante)
             existente.kick_off_utc = p.get("kick_off_utc", existente.kick_off_utc)
@@ -148,6 +150,7 @@ def guardar_partidos_dia(db: Session, fecha_bd: str, partidos: list[dict]) -> in
                     liga_slug=p.get("liga_slug"),
                     liga_nombre=p.get("liga_nombre"),
                     liga_codigo=p.get("liga_codigo"),
+                    liga_pais=p.get("liga_pais"),
                     liga_logo=p.get("liga_logo"),
                     local=p.get("local"),
                     visitante=p.get("visitante"),
@@ -168,6 +171,7 @@ def guardar_partidos_dia(db: Session, fecha_bd: str, partidos: list[dict]) -> in
             existente.liga_nombre = p.get("liga_nombre", existente.liga_nombre)
             existente.liga_codigo = p.get("liga_codigo", existente.liga_codigo)
             existente.liga_logo = p.get("liga_logo", existente.liga_logo)
+            existente.liga_pais = p.get("liga_pais", existente.liga_pais)
             existente.local = p.get("local", existente.local)
             existente.visitante = p.get("visitante", existente.visitante)
             existente.hora_chile = p.get("hora_chile", existente.hora_chile)
@@ -230,7 +234,7 @@ def leer_partidos_dia_agrupado(db: Session, fecha_bd: str, liga_slug: str | None
         buttons.append(partido)
         slug = f.liga_slug or "otras"
         if slug not in ligas:
-            ligas[slug] = {"nombre": f.liga_nombre or slug, "logo": f.liga_logo, "partidos": []}
+            ligas[slug] = {"nombre": f.liga_nombre or slug, "pais": f.liga_pais, "logo": f.liga_logo, "partidos": []}
         ligas[slug]["partidos"].append(partido)
 
     try:
@@ -402,7 +406,7 @@ def guardar_partidos_sin_retroceso(db: Session, fecha_bd: str, partidos: list[di
             terminado = rango_estado(nuevo_estado) == 3
             db.add(PartidoDia(
                 fecha=fecha_bd, match_id=match_id, liga_slug=p.get("liga_slug"), liga_nombre=p.get("liga_nombre"),
-                liga_codigo=p.get("liga_codigo"), liga_logo=p.get("liga_logo"), local=p.get("local"),
+                liga_codigo=p.get("liga_codigo"), liga_pais=p.get("liga_pais"), liga_logo=p.get("liga_logo"), local=p.get("local"),
                 visitante=p.get("visitante"), hora_chile=p.get("hora_chile"), logo_local=p.get("logo_local"),
                 logo_visitante=p.get("logo_visitante"), status=nuevo_estado, goles_local=p.get("goles_local"),
                 goles_visitante=p.get("goles_visitante"), creado_en=ahora, kick_off_utc=p.get("kick_off_utc"),
@@ -435,7 +439,7 @@ def _aplicar_a_existente(existente: PartidoDia, p: dict, nuevo_estado: str, cuen
             existente.goles_local, existente.goles_visitante = gl, gv
         if rango_nuevo == 3:
             existente.cache_invalidado = 1
-    for campo in ("hora_chile", "liga_nombre", "liga_slug", "liga_logo", "local", "visitante", "logo_local",
+    for campo in ("hora_chile", "liga_nombre", "liga_slug", "liga_pais", "liga_logo", "local", "visitante", "logo_local",
                   "logo_visitante", "kick_off_utc"):
         if not getattr(existente, campo) and p.get(campo):
             setattr(existente, campo, p[campo])

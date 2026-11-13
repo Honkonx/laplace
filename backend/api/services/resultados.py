@@ -25,8 +25,9 @@ from sqlalchemy.orm import Session
 from backend.api.core.tiempo import utc_ahora
 from backend.api.core.config import settings
 from backend.api.db import partidos_repo
-from backend.api.models.predicciones import AnalisisComparativo, AnalisisModulo, Prediccion
+from backend.api.models.predicciones import AnalisisComparativo, AnalisisModulo, Prediccion, PrediccionVarianteAgente
 from backend.api.models.partidos import PartidoDia, ResultadoPartido
+from backend.api.services._http_retry import cuerpo_api_football
 from backend.api.services.normalizacion import nombre_equipo_bsd, normalizar_nombre
 from backend.api.services import laboratorio_pronosticos
 
@@ -114,7 +115,7 @@ async def _consultar_fixtures_apifootball(client: httpx.AsyncClient, fixture_ids
                 timeout=15,
             )
             r.raise_for_status()
-            data = r.json()
+            data = cuerpo_api_football(r)  # un `errors` dentro de un 200 (plan, cuota) no es «sin resultados»: se registra y se salta el lote
         except Exception as exc:
             log.warning("resultados: consulta api-football falló: %s", exc)
             continue
@@ -228,6 +229,16 @@ def _guardar_resultado(db: Session, fixture_id: str, local: str, visitante: str,
     filas_pred = db.query(Prediccion).filter(Prediccion.partido_id == fixture_id).all()
     for fila in filas_pred:
         fila.pick_correcto = 1 if _pick_acerto(fila.pick, ganador, local, visitante) else 0
+
+    # Hipótesis «solo IA» del agente con partido resuelto: se califican con el mismo criterio que el resto, para que cuenten en el track record.
+    # Las que se guardaron sin `partido_id` (el bot no pudo resolver el partido) no se pueden evaluar y quedan como están.
+    for variante in (
+        db.query(PrediccionVarianteAgente)
+        .filter(PrediccionVarianteAgente.partido_id == fixture_id, PrediccionVarianteAgente.resultado_real.is_(None))
+        .all()
+    ):
+        variante.resultado_real = resultado_str
+        variante.pick_correcto = 1 if _pick_acerto(variante.pick, ganador, local, visitante) else 0
 
     partido_dia = (
         db.query(PartidoDia)

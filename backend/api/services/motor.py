@@ -18,6 +18,8 @@ siendo síncrono y sin I/O propio, igual que antes de conectar bsd_ml.
 """
 from __future__ import annotations
 
+import logging
+
 from backend.api.services import bsd_predictions as bsd_predictions_svc
 from backend.api.services import consenso as consenso_svc
 from backend.api.services import form_recent as form_recent_svc
@@ -119,6 +121,23 @@ def ejecutar_modulos(d: dict) -> tuple[dict[str, dict], dict[str, str]]:
     return resultados, modulos_skip
 
 
+log = logging.getLogger(__name__)
+
+
+def _pronostico_modelo_laplace(d: dict) -> dict | None:
+    """Resumen del modelo Laplace para este partido, o None. Nunca rompe el análisis: el modelo es una pieza independiente."""
+    try:
+        from backend.api.ml.laplace import servicio
+
+        salida = servicio.pronosticar_partido(None, {"local": d.get("local", ""), "visitante": d.get("visitante", ""), "liga": d.get("liga", ""),
+                                                      "pais": d.get("pais"), "liga_id": d.get("liga_id"),
+                                                      "cuotas": [d.get("odds_local"), d.get("odds_empate"), d.get("odds_visit")] if d.get("odds_disponibles") else None}, canal="bot")
+        return servicio.resumen_para_consumidores(salida)
+    except Exception:  # noqa: BLE001
+        log.warning("modelo Laplace no disponible para este partido", exc_info=True)
+        return None
+
+
 def analizar_partido(d: dict) -> dict:
     """Punto de entrada único: corre todos los módulos + consenso. Equivalente a lo que
     hacía `datos.py` (menos el fetch de datos externos, que todavía vive en
@@ -141,4 +160,6 @@ def analizar_partido(d: dict) -> dict:
         "modulos": resultados,
         "modulos_skip": modulos_skip,
         "consenso": consenso,
+        # Pronóstico del modelo propio, INFORMATIVO: no entra al consenso (empata con Dixon-Coles, que ya está) y no cambia el pick.
+        "modelo_laplace": _pronostico_modelo_laplace(d),
     }

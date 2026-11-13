@@ -71,6 +71,10 @@ def _fila_equipo(standings: dict, nombre_equipo: str) -> dict | None:
     if not grupos:
         return None
     tabla = grupos[0].get("table") or []
+    buscado = (nombre_equipo or "").strip().lower()
+    for fila in tabla:  # primero el nombre EXACTO: «Real Madrid» no debe emparejar con la fila «Real Betis» solo porque comparten «real»
+        if buscado and ((fila.get("team") or {}).get("name") or "").strip().lower() == buscado:
+            return fila
     for fila in tabla:
         nombre_tabla = (fila.get("team") or {}).get("name", "")
         if _coincide_equipo(nombre_tabla, nombre_equipo):

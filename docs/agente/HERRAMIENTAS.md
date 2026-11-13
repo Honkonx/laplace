@@ -27,3 +27,6 @@ El agente invoca al bot deportivo mediante herramientas con timeout, permisos, c
 Consulta `SPORTS_BACKEND_URL/capabilities` con 2 s de timeout y suma lo que responda al turno. Si el bot no responde, registra `sports.route_unavailable` y continúa con memoria y reglas locales. Ninguna herramienta ejecuta shell ni código enviado por el usuario.
 
 El chat sin IA reconoce consultas de ligas, partidos, predicciones y cuotas y las enruta a la herramienta correspondiente.
+
+## Recomendación de publicación
+`sports.top_picks` sin publicar agrega `politica_publicacion` (`decision`, `motivos`, `evidencia_en_vivo`); ver [`CONTROL_PLANE.md`](CONTROL_PLANE.md). Es una recomendación: `sports.publish` sigue exigiendo administrador, confirmación y `publish=true`.

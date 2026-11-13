@@ -5,6 +5,8 @@ wfa-022) — mismo criterio que usa `services/gateway.py` para descartar ligas a
 """
 from __future__ import annotations
 
+from backend.api.services import ligas_ident
+
 LIGAS_EXCLUIR_LOWER = {
     "ligue 1 congo", "ligue 1 senegal", "ligue 1 mali", "ligue 1 ivory coast",
     "ligue 1 cameroun", "ligue 1 morocco", "ligue 1 algerie", "ligue 1 tunisie",
@@ -31,9 +33,15 @@ LIGAS_PRIORITARIAS_LOWER = [
 ]
 
 
-def slug_liga(nombre: str) -> str:
-    import re
-    return re.sub(r"[^a-z0-9]+", "-", nombre.lower()).strip("-")[:30]
+def slug_liga(nombre: str, pais: str | None = None) -> str:
+    """Identificador de la competición (nombre + país): una sola regla para el menú, el guardado y el catálogo (`services/ligas_ident.py`)."""
+    from backend.api.services import ligas_ident
+
+    return ligas_ident.slug_competicion(nombre, pais)
+
+
+def slug_de_stage(stage: dict) -> str:
+    return slug_liga(stage.get("Snm") or stage.get("CompN") or "Liga", stage.get("Cnm"))
 
 
 def es_prioritaria(nombre: str) -> bool:
@@ -69,9 +77,9 @@ def ligas_con_partidos(stages: list[dict], solo_prioritarias: bool = True, maxim
         pendientes = [ev for ev in stage.get("Events", []) if ev.get("Eps") == "NS"]
         if not pendientes:
             continue
-        slug = slug_liga(nombre)
+        slug = slug_de_stage(stage)
         entrada = ligas_map.setdefault(slug, {
-            "nombre": nombre, "partidos": 0, "slug": slug, "cubiertos": 0, "paises": [],
+            "nombre": ligas_ident.nombre_visible(nombre, stage.get("Cnm")), "partidos": 0, "slug": slug, "cubiertos": 0, "paises": [],
             "prioritaria": es_prioritaria(nombre),
         })
         entrada["partidos"] += len(pendientes)

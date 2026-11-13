@@ -57,6 +57,8 @@ JOB_FUENTES_DEPORTIVAS = "fuentes_deportivas_health"
 JOB_REFRESCO_CUOTAS = "refresco_cuotas"
 JOB_REAJUSTE_MODELOS = "reajuste_modelos"
 JOB_COLECTOR_RESULTADOS = "colector_resultados"
+JOB_MODELO_LAPLACE = "modelo_laplace_sombra"
+JOB_REENTRENO_LAPLACE = "modelo_laplace_reentreno"
 
 # Ventanas de control, no cron nuevos. Si la API se reinicia o el scheduler deja de correr,
 # `/status` debe mostrarlo aunque el proceso aún responda `/health`.
@@ -71,6 +73,10 @@ VENTANA_MINUTOS = {
     JOB_COLECTOR_RESULTADOS: 1_080,
     # Semanal (domingo 03:30 Chile): 7 días + 1 de margen.
     JOB_REAJUSTE_MODELOS: 11_520,
+    # Diario (07:45 Chile): evalúa el modelo Laplace en sombra con los resultados ya verificados; 24h + 1 de margen.
+    JOB_MODELO_LAPLACE: 1_560,
+    # Semanal (domingo 04:30 Chile, después del reajuste de las 03:30): 7 días + 1 de margen.
+    JOB_REENTRENO_LAPLACE: 11_520,
 }
 
 

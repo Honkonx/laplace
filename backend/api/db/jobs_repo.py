@@ -63,6 +63,27 @@ def crear_job(db: Session, match_id: str, fecha: str, chat_id: str, user_id: str
     return {"job_id": job_id, "match_id": match_id, "chat_id": chat_id, "user_id": user_id, "plan": plan}
 
 
+MAX_ESPERAS_POR_PARTIDO = 50
+
+
+def registrar_espera(db: Session, match_id: str, fecha: str, chat_id: str, user_id: str, plan: str = "free") -> dict | None:
+    """Anota que `user_id` espera el análisis que otra persona ya pidió para `match_id` (H-011, 2026-11-11): antes se le decía «en progreso» y el resultado nunca le llegaba, porque el análisis
+    se envía solo al chat que lo pidió. Devuelve None si ya hay demasiada gente esperando ese partido."""
+    ya = db.query(Job).filter(Job.match_id == match_id, Job.user_id == user_id, Job.origen == "telegram", Job.status.in_(["pendiente", "procesando", "esperando"])).first()
+    if ya is not None:
+        return {"job_id": ya.job_id, "ya_esperando": True}
+    if db.query(Job).filter(Job.match_id == match_id, Job.status == "esperando").count() >= MAX_ESPERAS_POR_PARTIDO:
+        return None
+    job_id = f"espera_{match_id}_{int(datetime.now().timestamp() * 1000)}_{user_id}"
+    db.add(Job(job_id=job_id, match_id=match_id, fecha_partido=fecha, chat_id=chat_id, user_id=user_id, plan=plan, origen="telegram", status="esperando", intentos=0, creado_en=_now_str()))
+    db.commit()
+    return {"job_id": job_id, "ya_esperando": False}
+
+
+def esperas_de(db: Session, match_id: str) -> list[Job]:
+    return db.query(Job).filter(Job.match_id == match_id, Job.status == "esperando").order_by(Job.creado_en).all()
+
+
 def crear_job_app(db: Session, match_id: str, fecha: str, device_id: str, plan: str,
                    local: str = "", visitante: str = "", liga: str = "") -> dict:
     job_id = f"job_{match_id}_{int(datetime.now().timestamp() * 1000)}"
@@ -179,21 +200,22 @@ def listar_jobs(db: Session, status: str = "", limit: int = 50, offset: int = 0)
     return {"total": total, "limit": limit, "offset": offset, "jobs": jobs}
 
 
-def reset_jobs_colgados(db: Session, timeout_min: int = 15) -> dict:
+def reset_jobs_colgados(db: Session, timeout_min: int = 15, todos: bool = False) -> dict:
     """Resetea a `error` jobs pendientes/procesando más viejos que `timeout_min`. Corre
     automático cada 15 min vía `AsyncIOScheduler` (ver `main.py::_job_reset_jobs_colgados`,
     cableada 2026-09-09 tras la auditoría que encontró que esta función existía pero nunca se
     llamaba — un job podía quedar huérfano para siempre si el proceso moría a mitad de un
     análisis). También sigue disponible para invocación manual/diagnóstico puntual."""
     limite = (utc_ahora() - timedelta(minutes=timeout_min)).strftime("%Y-%m-%d %H:%M:%S")
-    colgados = db.query(Job).filter(Job.status.in_(["pendiente", "procesando"]), Job.creado_en < limite).all()
+    consulta = db.query(Job).filter(Job.status.in_(["pendiente", "procesando", "esperando"]))
+    colgados = (consulta if todos else consulta.filter(Job.creado_en < limite)).all()  # `todos`: al arrancar, ningún trabajo de un proceso anterior puede seguir en vuelo
 
     detalle = []
     for j in colgados:
         status_anterior = j.status
         j.status = "error"
         j.completado_en = _now_str()
-        detalle.append({"job_id": j.job_id, "match_id": j.match_id, "status_anterior": status_anterior})
+        detalle.append({"job_id": j.job_id, "match_id": j.match_id, "status_anterior": status_anterior, "chat_id": j.chat_id, "origen": j.origen})
     if colgados:
         db.commit()
     return {"reseteados": len(colgados), "detalle": detalle, "timeout_min": timeout_min}

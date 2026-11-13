@@ -46,6 +46,18 @@ export interface TasaBaseLiga {
   temporadas?: string[] | null;
 }
 
+/** Lectura del modelo propio de Laplace (informativa: no entra al consenso ni cambia el pick). `degradado` = respondió el respaldo Dixon-Coles. */
+export interface ModeloLaplaceResumen {
+  fuente: string;
+  degradado: boolean;
+  p1x2: { local: number; empate: number; visitante: number };
+  /** Los mercados de goles solo llegan si el modelo los validó fuera de muestra contra la tasa base; si no, vienen en null. */
+  goles_esperados: { local: number; visitante: number; total: number } | null;
+  btts_si: number | null;
+  mas_2_5: number | null;
+  marcador_mas_probable: string | null;
+}
+
 export interface ResultadoPrediccion {
   partido_id: string;
   local: string;
@@ -59,6 +71,8 @@ export interface ResultadoPrediccion {
   h2h_resumen?: string;
   /** Aún no lo envía /prediccion-web; la tarjeta lo muestra solo si llega. */
   tasa_base_liga?: TasaBaseLiga | null;
+  /** Pronóstico del modelo propio de Laplace; null/ausente si no cubre el partido. */
+  modelo_laplace?: ModeloLaplaceResumen | null;
   /** Con "Sin pronóstico": por qué no hay estimación propia y la frecuencia histórica como REFERENCIA, no como pick. */
   /** En qué se apoya el pronóstico: N4 histórico+cuotas, N3 cuotas, N2 histórico, N1 equipo nuevo, N0 sin pronóstico, DEBIL. */
   nivel_evidencia?: { codigo: string; etiqueta: string };
@@ -82,17 +96,42 @@ export async function pedirPrediccion(partido: {
 
 // ---- Simulador de liga ----
 
+export interface PuntosSimulados {
+  p05: number;
+  p50: number;
+  p95: number;
+  media: number;
+}
+
+export interface LigaSimulable {
+  slug: string;
+  nombre: string;
+  disponible: boolean;
+  temporada?: string;
+  datos_hasta?: string;
+  partidos_pendientes?: number;
+  motivo?: string;
+}
+
 export interface ResultadoSimulador {
   ok: boolean;
   razon?: string;
   liga_slug?: string;
   liga_nombre?: string;
+  temporada?: string;
   n_simulaciones?: number;
   partidos_pendientes?: number;
+  partidos_jugados?: number;
+  datos_hasta?: string;
+  aviso?: string;
   tabla?: Record<
     string,
-    { prob_campeon: number; prob_copa: number; prob_descenso: number; posicion_promedio: number }
+    { prob_campeon: number; prob_copa: number; prob_descenso: number; posicion_promedio: number; puntos?: PuntosSimulados }
   >;
+}
+
+export async function ligasSimulables() {
+  return request<{ ligas: LigaSimulable[]; requiere: string; mensaje: string }>("/api/v1/simulador");
 }
 
 export async function simularLiga(ligaSlug: string) {

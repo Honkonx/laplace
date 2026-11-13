@@ -2,7 +2,7 @@
 `gestionar_usuario`, `leer_stats_modulos`, `guardar_prediccion_externa`).
 
 Port de las funciones equivalentes de db_query.py — ninguna la llama un
-workflow n8n; son herramientas que el dueño del proyecto corría a mano (antes vía
+workflow n8n; son herramientas que quien mantiene el proyecto corría a mano (antes vía
 `python3 db_query.py <función> '<json>'`, ahora expuestas como comandos de admin del bot, ver
 `backend/api/bot/laplace_bot.py`). `setup_inicial` NO se porta — Alembic ya reemplaza esa
 función (creación de esquema), es código muerto en el original.

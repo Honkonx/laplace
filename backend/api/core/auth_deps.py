@@ -24,9 +24,9 @@ ALGORITMO_JWT = "HS256"
 
 
 def obtener_usuario_actual(authorization: str = Header(...), db: Session = Depends(get_db)) -> dict:
-    """Extrae y valida el JWT del header `Authorization: Bearer <token>`. Lanza 401 si
-    falta el header, el formato es inválido, el token es inválido/expiró, o fue revocado
-    (`POST /api/v1/auth/logout`)."""
+    """Extrae y valida el JWT del header `Authorization: Bearer <token>`. Si el header NO viene,
+    FastAPI responde 422 (es un parámetro requerido, `Header(...)`); si viene pero el formato es
+    inválido, el token es inválido/expiró, o fue revocado (`POST /api/v1/auth/logout`), lanza 401."""
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Header Authorization inválido — se espera 'Bearer <token>'")
     token = authorization.removeprefix("Bearer ").strip()

@@ -9,6 +9,8 @@ real de FastAPI se agrega en Parte 2 (ver skill logging-observability).
 """
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from backend.api.services._matematica import clamp as _clamp
 from backend.api.services._matematica import normalizar_probabilidades
 from backend.api.services._matematica import safe_float as _safe_float
@@ -53,19 +55,31 @@ SCORE_UMBRAL_BAJO = 40
 SCORE_UMBRAL_MUY_BAJO = 25
 
 
+def _resultado_de(resultados: dict, modulo: str) -> dict:
+    """Resultado de un módulo, o {} si falta o no es un diccionario (un módulo roto no debe tumbar el consenso)."""
+    r = resultados.get(modulo) if isinstance(resultados, dict) else None
+    return r if isinstance(r, dict) else {}
+
+
+def _puntaje(valor) -> float:
+    """Puntaje de confianza acotado a 0–100; 50 si falta, es None, NaN o no numérico."""
+    v = _safe_float(valor, 50.0, finito=True)
+    return _clamp(v, 0.0, 100.0)
+
+
 def calcular_pesos_efectivos(resultados: dict) -> tuple[dict[str, float], list[str]]:
     pesos: dict[str, float] = {}
     modulos_ok: list[str] = []
 
     for modulo in MODULOS_TODOS:
-        res = resultados.get(modulo, {})
+        res = _resultado_de(resultados, modulo)
         peso_base = PESOS_BASE[modulo]
         # Peso 0 = módulo ausente del consenso (no vota ni cuenta como módulo disponible).
         if not res.get("ok", False) or peso_base <= 0:
             pesos[modulo] = 0.0
             continue
 
-        score = res.get("confianza_score", 50)
+        score = _puntaje(res.get("confianza_score"))
 
         if score < SCORE_UMBRAL_MUY_BAJO:
             factor = 0.20
@@ -93,7 +107,7 @@ def calcular_votos_ponderados(resultados: dict, pesos_efectivos: dict, modulos_o
     prob_local_acum = prob_empate_acum = prob_visit_acum = peso_prob_acum = 0.0
 
     for modulo in modulos_ok:
-        res = resultados.get(modulo, {})
+        res = _resultado_de(resultados, modulo)
         pick = res.get("pick", "")
         peso = pesos_efectivos.get(modulo, 0.0)
 
@@ -132,10 +146,10 @@ def calcular_score_consenso(resultados, pesos_efectivos, modulos_ok, pick_final,
     peso_base_acum = 0.0
 
     for modulo in modulos_ok:
-        res = resultados.get(modulo, {})
+        res = _resultado_de(resultados, modulo)
         pick = res.get("pick", "")
         if pick == pick_final:
-            score_mod = res.get("confianza_score", 50)
+            score_mod = _puntaje(res.get("confianza_score"))
             peso_mod = pesos_efectivos.get(modulo, 0.0)
             score_base += score_mod * peso_mod
             peso_base_acum += peso_mod
@@ -176,6 +190,22 @@ def determinar_nivel(modulos_ok: list[str], votos_peso: dict, pick_final: str) -
     return "DEBIL"
 
 
+CONTRATO_CONSENSO = "consenso.v1"
+
+
+def construir_procedencia(resultados: dict, pesos_efectivos: dict, modulos_ok: list[str]) -> dict:
+    """Procedencia del pronóstico (contrato `consenso.v1`, MB-40): qué módulos respondieron y cuáles no, con qué peso y método, la versión del modelo propio cuando entró en la mezcla, los
+    pesos configurados y el instante del cálculo. Es descriptiva: no cambia ninguna cifra. El agente y la web leen estos mismos campos."""
+    modulos = []
+    for modulo in modulos_ok:
+        r = resultados.get(modulo) or {}
+        propio = r.get("laplace_en_mezcla") or {}
+        modulos.append({"modulo": modulo, "peso": round(pesos_efectivos.get(modulo, 0.0), 4), "metodo": r.get("metodo"),
+                        "version_modelo_propio": propio.get("version"), "peso_modelo_propio": propio.get("peso")})
+    return {"contrato": CONTRATO_CONSENSO, "calculado_en": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), "modulos": modulos,
+            "modulos_sin_respuesta": [m for m in MODULOS_TODOS if m not in modulos_ok], "pesos_configurados": dict(PESOS_BASE)}
+
+
 def calcular_consenso(resultados: dict, partido: dict | None = None) -> dict:
     """Orquesta pesos → votación → nivel → score. `resultados` es
     {modulo: resultado_del_modulo} (mismo shape que armaba datos.py)."""
@@ -186,6 +216,7 @@ def calcular_consenso(resultados: dict, partido: dict | None = None) -> dict:
             # Un fallback uniforme no es una predicción. Antes se devolvía "Local"
             # con probabilidades 33/33/33, lo que podía filtrarse como recomendación
             # cuando un caller no aplicaba su propia puerta de calidad.
+            "contrato": CONTRATO_CONSENSO,
             "pick_final": "Sin pronóstico",
             "nivel": "SIN_MODULOS",
             "coinciden": 0,
@@ -280,6 +311,8 @@ def calcular_consenso(resultados: dict, partido: dict | None = None) -> dict:
         "modulos_disidentes": modulos_disidentes,
         "peso_efectivo": peso_efectivo_out,
         "bsd_ml_activo": bsd_ml_activo,
+        "contrato": CONTRATO_CONSENSO,
+        "procedencia": construir_procedencia(resultados, pesos_efectivos, modulos_ok),
         "pick": pick_final,
         "confianza": confianza_final,
         "score": score_consenso,

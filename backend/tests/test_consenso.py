@@ -202,3 +202,39 @@ def test_sin_modulo_ancla_la_confianza_nunca_pasa_de_baja():
     con_ancla = dict(resultados, historico={"ok": True, "pick": "Local", "prob_local": 0.72, "prob_empate": 0.18,
                                             "prob_visitante": 0.10, "confianza_score": 70})
     assert consenso.calcular_consenso(con_ancla)["confianza_final"] in ("ALTA", "MEDIA")
+
+
+# ---------- MB-40: contrato consenso.v1 con procedencia ----------
+def test_el_consenso_declara_su_procedencia_sin_cambiar_ninguna_cifra():
+    from backend.api.services import consenso
+
+    res = {"odds": {"ok": True, "pick": "Local", "prob_local": 0.5, "prob_empate": 0.27, "prob_visitante": 0.23, "confianza_score": 70, "metodo": "cuotas sin margen"},
+           "historico": {"ok": True, "pick": "Local", "prob_local": 0.48, "prob_empate": 0.28, "prob_visitante": 0.24, "confianza_score": 60, "metodo": "dixon_coles_mas_laplace",
+                         "laplace_en_mezcla": {"peso": 0.55, "version": "20261111-real-g3"}}}
+    r = consenso.calcular_consenso(res)
+    proc = r["procedencia"]
+    assert r["contrato"] == proc["contrato"] == "consenso.v1"
+    assert {m["modulo"] for m in proc["modulos"]} == {"odds", "historico"} and "forma" in proc["modulos_sin_respuesta"]
+    historico = next(m for m in proc["modulos"] if m["modulo"] == "historico")
+    assert historico["version_modelo_propio"] == "20261111-real-g3" and historico["peso_modelo_propio"] == 0.55 and historico["peso"] > 0
+    assert proc["pesos_configurados"] == consenso.PESOS_BASE and proc["calculado_en"].endswith("Z")
+    sin = {k: v for k, v in r.items() if k not in ("procedencia", "contrato")}
+    assert sin["pick_final"] == "Local" and abs(sum(sin["prob_ponderada"].values()) - 1) < 1e-6  # las cifras son las de siempre
+
+
+def test_sin_modulos_el_consenso_no_inventa_procedencia():
+    from backend.api.services import consenso
+
+    r = consenso.calcular_consenso({})
+    assert r["pick_final"] == "Sin pronóstico" and r["total_modulos"] == 0
+
+
+def test_el_health_del_bot_declara_el_contrato_y_los_pesos_del_consenso():
+    """MB-44: el registro de piezas del agente lee la versión del consenso y sus pesos del /health."""
+    from fastapi.testclient import TestClient
+
+    from backend.api.main import app
+    from backend.api.services import consenso
+
+    r = TestClient(app).get("/health").json()
+    assert r["status"] == "ok" and r["consenso"]["contrato"] == "consenso.v1" and r["consenso"]["pesos"] == consenso.PESOS_BASE

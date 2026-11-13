@@ -33,6 +33,7 @@ EXPERIMENTOS_BASE = (
     ("human_reference", "Referencia humana supervisada", "web_referencia", "human-v1"),
     ("dixon_coles_historico", "Dixon-Coles entrenado con histórico (puro, sin cuotas)", "propio", "dc-decay-v1"),
     ("dc_mas_mercado_historico", "Dixon-Coles apilado con cuotas del mercado", "propio", "dc-mercado-v1"),
+    ("laplace_modelo", "Modelo propio Laplace (jerárquico por liga)", "propio", "laplace-jerarquico-v1"),
 )
 
 
@@ -269,6 +270,7 @@ def registrar_comparadores_del_motor(db: Session, *, partido_id: str, fecha_part
     registrar_desde_motor(db, **comun, poisson=modulos.get("poisson", {}), combinado=combinado)
     registrar_referencia_bsd(db, **comun, bsd_ml=modulos.get("bsd_ml", {}))
     registrar_historico(db, **comun, historico=modulos.get("historico", {}))
+    registrar_modelo_laplace(db, **comun)
 
 
 def registrar_referencia_api_football(db: Session, *, partido_id: str, fecha_partido: str, local: str,
@@ -447,3 +449,14 @@ def reporte_laboratorio(db: Session) -> dict:
         },
         "politica": "Las variantes de sombra no participan en el consenso público. Promover una requiere revisión administrativa y evidencia fuera de muestra.",
     }
+
+
+# El modelo Laplace en el laboratorio (variante `laplace_modelo`, su predicción con partido_id y la comparación en vivo) vive en su propio módulo; se reexporta aquí
+# porque el resto del código y las pruebas lo conocen como `laboratorio_pronosticos.<nombre>`. Va al final: ese módulo importa este de forma perezosa.
+from backend.api.services.laboratorio_modelo_laplace import (  # noqa: E402,F401
+    _registrar_prediccion_del_modelo,
+    comparar_en_vivo,
+    cruces_de_umbral,
+    registrar_modelo_laplace,
+    registrar_proximos,
+)

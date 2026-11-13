@@ -6,7 +6,16 @@
 3. **Consenso ponderado** (`services/consenso.py`): las cuotas y el histórico son las dos **anclas** que la evaluación walk-forward midió con información real; forma reciente, tabla y H2H pesan casi nada y un peso 0 equivale a módulo ausente.
 4. **Puerta de calidad de datos** (`services/calidad_datos.py`): un pronóstico solo se publica con al menos 2 canales independientes de datos reales.
 
+5. **Modelo propio de Laplace** (`ml/laplace/`): ratings Elo y tasas de gol con memoria exponencial alimentan una regresión logística jerárquica por liga. Pronostica 1X2, goles esperados, marcadores, ambos marcan y más o menos goles (solo se muestran los mercados que superaron a la tasa base fuera de muestra) y se combina con las cuotas sin margen cuando existen. Es una de las piezas del consenso y también se puede usar sola.
+6. **Simulador de temporadas**: Monte Carlo de campeón, copa y descenso con incertidumbre de la fuerza de cada equipo. El cálculo caliente está en Rust (con respaldo en Go y en Python): se elige el primero que esté compilado y la respuesta dice cuál corrió. Se compila con `backend/scripts/construir_rust.py` y `construir_go.py`; sin ellos, todo sigue funcionando en Python.
+
 La IA no interviene en las probabilidades: explica el resultado y contrasta, y sus cifras se depuran para que no cite porcentajes ajenos al motor.
+
+## Usar el modelo sin Telegram
+El modelo se ejecuta como un sistema, no solo por el bot:
+- **HTTP**: `POST /api/v1/ml/predict` con `local` y `visitante` (obligatorios) y `liga`, `pais`, `liga_id` y `cuotas` (opcionales; el país desambigua ligas homónimas como la Serie B de Brasil o de Italia). Devuelve probabilidades que suman 1, `fuente`, `degradado` y el motivo cuando no hay pronóstico.
+- **Línea de comandos**: `python backend/scripts/modelo_laplace.py predecir --entrada partidos.csv --salida pronosticos.csv` pronostica un lote (CSV o JSON) sin servidor y sin escribir en la base.
+- **Biblioteca**: `backend.api.ml.laplace.servicio.pronosticar_partido`.
 
 ## Qué no incluye este repositorio
 **Ni datos históricos ni modelos entrenados.** Salen de fuentes con licencias propias (ver [seguridad y datos](seguridad-y-datos.md)) y cada quien debe generarlos con las suyas:

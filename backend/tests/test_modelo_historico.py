@@ -167,3 +167,47 @@ def test_resumen_tasa_base_es_none_sin_cobertura_y_completo_con_ella(artefactos,
     assert resumen["partidos"] == 1140 and resumen["pct_empate"] == 23.0 and "football-data" in resumen["fuente"]
     assert mh.resumen_tasa_base({"liga": "Liga Profesional", "local": "A", "visitante": "B"}) is None
     mh._tasas_por_liga.cache_clear()
+
+
+# ---------- MB-12: sin cuotas, Dixon-Coles se mezcla con el modelo Laplace ----------
+def _propio(local, empate, visitante):
+    return {"p1x2": {"local": local, "empate": empate, "visitante": visitante}, "modelo": {"version": "v-test"}}
+
+
+def test_sin_cuotas_el_historico_mezcla_dixon_coles_con_laplace_55_45(artefactos, monkeypatch):
+    from backend.api.ml.laplace import servicio
+
+    base = mh.analizar(_d())
+    monkeypatch.setattr(servicio, "pronostico_propio", lambda entrada: _propio(0.30, 0.40, 0.30))
+    mezcla = mh.analizar(_d())
+    esperado_local = 0.55 * 0.30 + 0.45 * base["prob_local"]
+    assert mezcla["metodo"] == "dixon_coles_mas_laplace" and mezcla["laplace_en_mezcla"] == {"peso": 0.55, "version": "v-test"}
+    assert abs(mezcla["prob_local"] - esperado_local) < 1e-3 and abs(mezcla["prob_local"] + mezcla["prob_empate"] + mezcla["prob_visitante"] - 1) < 2e-4
+    assert base["metodo"] == "dixon_coles" and base["laplace_en_mezcla"] is None
+
+
+def test_con_cuotas_el_historico_no_se_toca_y_si_el_modelo_no_cubre_el_partido_queda_dixon_coles(artefactos, monkeypatch):
+    from backend.api.ml.laplace import servicio
+
+    monkeypatch.setattr(servicio, "pronostico_propio", lambda entrada: _propio(0.30, 0.40, 0.30))
+    con_cuotas = mh.analizar(_d(odds_disponibles=True, odds_local=1.4, odds_empate=4.5, odds_visit=8.0))
+    assert con_cuotas["laplace_en_mezcla"] is None
+    monkeypatch.setattr(servicio, "pronostico_propio", lambda entrada: None)
+    assert mh.analizar(_d())["metodo"] == "dixon_coles"
+
+
+def test_el_ajuste_apaga_la_mezcla(artefactos, monkeypatch):
+    from backend.api.core.config import settings
+    from backend.api.ml.laplace import servicio
+
+    monkeypatch.setattr(servicio, "pronostico_propio", lambda entrada: _propio(0.30, 0.40, 0.30))
+    monkeypatch.setattr(settings, "CONSENSO_HISTORICO_CON_LAPLACE", False)
+    assert mh.analizar(_d())["metodo"] == "dixon_coles"
+
+
+def test_pronostico_propio_no_usa_el_respaldo_ni_registra_y_devuelve_none_sin_modelo(monkeypatch):
+    from backend.api.ml.laplace import servicio
+
+    monkeypatch.setattr(servicio, "_modelo_vigente", lambda db: (None, None, "no hay un modelo Laplace activo"))
+    assert servicio.pronostico_propio({"local": "A", "visitante": "B", "liga": "X"}) is None
+    assert servicio.pronostico_propio({"local": "A", "visitante": "A"}) is None

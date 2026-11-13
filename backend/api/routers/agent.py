@@ -39,6 +39,9 @@ def _presupuesto_ia(usuario: dict, cantidad: int = 1) -> None:
     except LimiteExcedido as exc:
         raise HTTPException(status_code=429, detail=str(exc), headers={"Retry-After": str(exc.reintentar_en)}) from exc
 
+# Los que `services/ai_client.py` sabe llamar hoy (el resto del catálogo es una lista de proveedores previstos: se muestran pero no responden).
+PROVEEDORES_IMPLEMENTADOS = {"gemini", "groq", "openrouter", "ollama_cloud", "anthropic"}
+
 PROVIDER_CATALOG = [
     ("anthropic", "Anthropic", "CLAUDE_MODEL", "ANTHROPIC_API_KEY", ["claude-sonnet-4-6", "claude-haiku-4-5"]),
     ("openai", "OpenAI", "OPENAI_MODEL", "OPENAI_API_KEY", ["gpt-5", "gpt-5-mini"]),
@@ -68,7 +71,7 @@ def proveedores_ia(usuario: dict = Depends(obtener_usuario_actual)) -> dict:
     for provider_id, name, model_setting, credential_setting, models in PROVIDER_CATALOG:
         credential = getattr(settings, credential_setting, "")
         configured = bool(credential)
-        providers.append({"id": provider_id, "name": name, "configured": configured, "status": "configured" if configured else "not_configured", "selected_model": getattr(settings, model_setting, None), "models": models, "credential_source": "environment"})
+        providers.append({"id": provider_id, "implementado": provider_id in PROVEEDORES_IMPLEMENTADOS, "name": name, "configured": configured, "status": "configured" if configured else "not_configured", "selected_model": getattr(settings, model_setting, None), "models": models, "credential_source": "environment"})
     return {"providers": providers, "security": "Las credenciales se configuran en secretos del servidor y nunca se devuelven al navegador."}
 
 
@@ -77,6 +80,7 @@ class ChatInput(BaseModel):
     session_id: str | None = None
     channel: str = Field(default="web", pattern="^(web|pwa|android|telegram_agent)$")
     usar_ia: bool = False
+    incognito: bool = False
 
 
 class TaskInput(BaseModel):
@@ -153,7 +157,7 @@ async def chat(body: ChatInput, authorization: str = Header(...), usuario: dict 
     if body.usar_ia:
         _presupuesto_ia(usuario)
     try:
-        return await procesar_mensaje(db, usuario["sub"], body.message, body.session_id, body.channel, body.usar_ia, _es_admin(usuario), authorization)
+        return await procesar_mensaje(db, usuario["sub"], body.message, body.session_id, body.channel, body.usar_ia, _es_admin(usuario), authorization, incognito=body.incognito)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 

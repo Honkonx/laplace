@@ -105,7 +105,8 @@ def _peticion_openai(api_key: Callable[[], str], modelo: Callable[[], str]) -> C
 
 
 def _extraer_openai(r: httpx.Response) -> str:
-    return r.json()["choices"][0]["message"]["content"].strip()
+    # un modelo de razonamiento puede devolver `content: null` (todo el texto va en `reasoning`): sin texto no hay respuesta y la cascada sigue con el siguiente
+    return (r.json()["choices"][0]["message"].get("content") or "").strip()
 
 
 def _peticion_gemini(prompt: str, max_tokens: int, temperature: float) -> dict:
@@ -233,6 +234,19 @@ BACKOFF_REINTENTO_SEGUNDOS = 0.6
 _MARGEN_MINIMO_SEGUNDOS = 1.0
 
 
+# Un proveedor que responde 401/402/403/404 (clave inválida, sin créditos, sin permiso o modelo que ya no existe) no se arregla reintentando: se salta unos minutos en vez de gastar un intento por mensaje.
+SEGUNDOS_FUERA_POR_CONFIGURACION = 600
+_FUERA_HASTA: dict[str, float] = {}
+
+
+def reiniciar_enfriamientos() -> None:
+    _FUERA_HASTA.clear()
+
+
+def _es_error_de_configuracion(error: Exception) -> bool:
+    return isinstance(error, httpx.HTTPStatusError) and error.response.status_code in (401, 402, 403, 404)
+
+
 def _es_reintentable(error: Exception) -> bool:
     return isinstance(error, httpx.HTTPStatusError) and (
         error.response.status_code == 429 or error.response.status_code >= 500
@@ -247,7 +261,7 @@ async def _intentar(
     está configurado, falló o devolvió vacío. `limite` es el instante (`time.monotonic`) en que se
     agota el presupuesto total. Registra la métrica (éxito o fallo) y nunca propaga una excepción
     del proveedor."""
-    if not proveedor.configurado():
+    if not proveedor.configurado() or _FUERA_HASTA.get(proveedor.nombre, 0.0) > time.monotonic():
         return None
     modelo = proveedor.modelo()
     inicio = time.perf_counter()
@@ -276,7 +290,11 @@ async def _intentar(
                 proveedor.nombre, exitoso=False, latencia_ms=ai_metrics.ms_desde(inicio),
                 modelo=modelo, error=ai_metrics.sanitizar_error(str(e)),
             )
-            log.warning("%s falló, probando siguiente proveedor de IA (%s)", proveedor.nombre, type(e).__name__)
+            if _es_error_de_configuracion(e):
+                _FUERA_HASTA[proveedor.nombre] = time.monotonic() + SEGUNDOS_FUERA_POR_CONFIGURACION
+                log.warning("%s responde %s (clave sin créditos, sin permiso o modelo inexistente): se salta %s min", proveedor.nombre, e.response.status_code, SEGUNDOS_FUERA_POR_CONFIGURACION // 60)
+            else:
+                log.warning("%s falló, probando siguiente proveedor de IA (%s)", proveedor.nombre, type(e).__name__)
             return None
     return None
 

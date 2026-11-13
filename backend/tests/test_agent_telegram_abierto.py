@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import pytest
 
 from backend.api.bot import laplace_agent_bot as bot
+from backend.api.bot import laplace_agent_bot_admin, laplace_agent_bot_nucleo as nucleo
 from backend.api.core.config import settings
 from backend.api.services import agent_guard
 
@@ -55,7 +56,7 @@ def test_publicar_exige_la_palabra_confirmo(monkeypatch):
         llamadas.append((nombre, aprobado))
         return {"result": {"publicado": True}}
 
-    monkeypatch.setattr(bot, "_herramienta", falso)
+    monkeypatch.setattr(nucleo, "_herramienta", falso)
     admin = _update(1)
     asyncio.run(bot.cmd_publicar(admin, _ctx()))
     assert llamadas == [] and "confirmo" in admin.respuestas[0]
@@ -99,7 +100,7 @@ def test_predecir_busca_el_partido_y_muestra_probabilidades_honestas(monkeypatch
             "tasa_base_liga": {"partidos": 900, "pct_local": 44.0, "pct_empate": 26.0, "pct_visitante": 30.0},
         }}
 
-    monkeypatch.setattr(bot, "_herramienta", falso)
+    monkeypatch.setattr(nucleo, "_herramienta", falso)
     u = _update(5)
     asyncio.run(bot.cmd_predecir(u, _ctx("River", "vs", "Boca")))
     texto = u.respuestas[0]
@@ -149,7 +150,7 @@ def test_formatear_partidos_agrupa_por_liga_y_limita():
 
 def test_ia_del_admin_no_consume_presupuesto_y_la_del_usuario_si(monkeypatch):
     consumos = []
-    monkeypatch.setattr(bot, "consumir_ia", lambda usuario, es_admin=False: consumos.append(usuario))
+    monkeypatch.setattr(nucleo, "consumir_ia", lambda usuario, es_admin=False: consumos.append(usuario))
 
     class _Sesion:
         def __enter__(self):
@@ -161,9 +162,10 @@ def test_ia_del_admin_no_consume_presupuesto_y_la_del_usuario_si(monkeypatch):
     async def procesar(db, **kwargs):
         return {"respuesta": "ok"}
 
-    monkeypatch.setattr(bot, "SessionLocal", lambda: _Sesion())
-    monkeypatch.setattr(bot, "sincronizar_conocimiento_json", lambda db: 0)
-    monkeypatch.setattr(bot, "procesar_mensaje", procesar)
+    monkeypatch.setattr(nucleo, "SessionLocal", lambda: _Sesion())
+    monkeypatch.setattr(nucleo, "sincronizar_conocimiento_json", lambda db: 0)
+    monkeypatch.setattr(nucleo, "ultima_sesion", lambda db, usuario, canal: None)
+    monkeypatch.setattr(nucleo, "procesar_mensaje", procesar)
     asyncio.run(bot._consultar_agente(_update(1), "hola", True))
     asyncio.run(bot._consultar_agente(_update(7), "hola", True))
     assert consumos == ["telegram:7"]
@@ -176,7 +178,7 @@ def test_decidir_no_decide_si_la_palabra_no_es_aprobar_ni_rechazar(monkeypatch):
         llamadas.append((approval_id, decision))
         return {"status": decision}
 
-    monkeypatch.setattr(bot, "decidir_aprobacion", falso)
+    monkeypatch.setattr(laplace_agent_bot_admin, "decidir_aprobacion", falso)
     for args in ((), ("abc",), ("abc", "aprobr"), ("abc", "tal vez")):
         admin = _update(1)
         asyncio.run(bot.cmd_decidir_aprobacion(admin, _ctx(*args)))
@@ -191,8 +193,62 @@ def test_decidir_aprueba_y_rechaza_con_las_palabras_validas(monkeypatch):
         llamadas.append((approval_id, decision))
         return {"status": decision}
 
-    monkeypatch.setattr(bot, "decidir_aprobacion", falso)
+    monkeypatch.setattr(laplace_agent_bot_admin, "decidir_aprobacion", falso)
     for palabra in ("aprobar", "Approve"):
         asyncio.run(bot.cmd_decidir_aprobacion(_update(1), _ctx("x1", palabra)))
     asyncio.run(bot.cmd_decidir_aprobacion(_update(1), _ctx("x2", "rechazar")))
     assert llamadas == [("x1", "approved"), ("x1", "approved"), ("x2", "rejected")]
+
+
+@pytest.mark.parametrize(("politica", "usuario", "ia_esperada"), [("nadie", 1, False), ("nadie", 42, False), ("admin", 1, True), ("admin", 42, False), ("todos", 1, True), ("todos", 42, True)])
+def test_el_texto_libre_usa_ia_segun_la_politica(monkeypatch, politica, usuario, ia_esperada):
+    """MA-05: quién puede usar IA en el texto libre de Telegram (por defecto solo el administrador)."""
+    llamadas = []
+
+    async def consultar(update, texto, usar_ia):
+        llamadas.append(usar_ia)
+
+    monkeypatch.setattr(nucleo, "_consultar_agente", consultar)
+    monkeypatch.setattr(settings, "AGENT_TEXTO_LIBRE_IA", politica)
+    monkeypatch.setattr(settings, "AGENT_IA_ACTIVA", True)
+    asyncio.run(bot._responder(_update(usuario, "analiza Boca vs River"), _ctx()))
+    assert llamadas == [ia_esperada]
+
+
+def test_con_la_ia_apagada_el_texto_libre_nunca_usa_ia(monkeypatch):
+    llamadas = []
+
+    async def consultar(update, texto, usar_ia):
+        llamadas.append(usar_ia)
+
+    monkeypatch.setattr(nucleo, "_consultar_agente", consultar)
+    monkeypatch.setattr(settings, "AGENT_TEXTO_LIBRE_IA", "todos")
+    monkeypatch.setattr(settings, "AGENT_IA_ACTIVA", False)
+    asyncio.run(bot._responder(_update(1, "hola"), _ctx()))
+    assert llamadas == [False]
+
+
+def test_los_comandos_de_sesion_responden_y_aislan_por_usuario(monkeypatch, db_session):
+    from backend.api.bot import laplace_agent_bot_comandos as comandos
+
+    monkeypatch.setattr(comandos, "SessionLocal", lambda: _Contexto(db_session))
+    u = _update(5)
+    asyncio.run(bot.cmd_sesiones(u, _ctx()))
+    assert "Todavía no tienes conversaciones" in u.respuestas[0]
+    u = _update(5)
+    asyncio.run(bot.cmd_nuevo(u, _ctx()))
+    assert "conversación nueva" in u.respuestas[0]
+    u = _update(5)
+    asyncio.run(bot.cmd_retomar(u, _ctx()))
+    assert "Todavía no tengo una conversación anterior" in u.respuestas[0]
+
+
+class _Contexto:
+    def __init__(self, db):
+        self.db = db
+
+    def __enter__(self):
+        return self.db
+
+    def __exit__(self, *args):
+        return False

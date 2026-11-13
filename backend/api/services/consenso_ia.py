@@ -120,25 +120,44 @@ def extraer_pick_claude(texto_claude: str, local: str, visitante: str) -> str:
 
 _PORCENTAJE = re.compile(r"(\d{1,3}(?:[.,]\d+)?)\s*%")
 _TOLERANCIA_PORCENTAJE = 0.6  # "45%" respalda un 45,2 % del prompt (la IA redondea)
+_NUMERO = re.compile(r"(?<![\w.,])\d+(?:[.,]\d+)?(?![\w])")
+_TOLERANCIA_DECIMAL = 0.06  # 1,8 respalda un 1,83 del prompt
 
 
 def _porcentajes(texto: str) -> list[float]:
     return [float(m.replace(",", ".")) for m in _PORCENTAJE.findall(texto or "")]
 
 
-def depurar_cifras(texto_ia: str, prompt: str) -> tuple[str, list[str]]:
-    """Quita del texto de la IA las líneas con un porcentaje que NO figura en el prompt que recibió.
+def _numeros(texto: str) -> list[float]:
+    return [float(m.replace(",", ".")) for m in _NUMERO.findall(texto or "")]
 
-    El prompt le prohíbe dar probabilidades propias (la IA explica y contrasta, no calcula): un porcentaje ausente del
-    prompt es una cifra inventada o derivada por ella. Se descarta solo esa línea (nunca la del PICK) y se devuelve la
-    lista de líneas quitadas para registrarlas. Los porcentajes que sí vienen del prompt se conservan."""
-    permitidos = _porcentajes(prompt)
+
+def _cifra_sin_respaldo(valor: float, es_decimal: bool, permitidos: list[float]) -> bool:
+    """Una cifra de la IA solo vale si aparece en el prompt. Enteros de 0 a 10 (conteos como «4 de 5») y años (1900-2100) no se exigen: son demasiado comunes para ser una cifra inventada."""
+    if not es_decimal and (0 <= valor <= 10 or 1900 <= valor <= 2100):
+        return False
+    tolerancia = _TOLERANCIA_DECIMAL if es_decimal else 0.0
+    return not any(abs(valor - p) <= tolerancia for p in permitidos)
+
+
+def depurar_cifras(texto_ia: str, prompt: str) -> tuple[str, list[str]]:
+    """Quita del texto de la IA las líneas con una CIFRA (porcentaje, cuota, goles, posición…) que NO figura en el prompt que recibió.
+
+    El prompt le prohíbe dar probabilidades propias (la IA explica y contrasta, no calcula): una cifra ausente del prompt es inventada o derivada por ella. Se descarta solo esa
+    línea (nunca la del PICK) y se devuelve la lista de líneas quitadas para registrarlas. Antes solo se revisaban los porcentajes; ahora son todos los números (`bot/02` §5.11)."""
+    permitidos_pct = _porcentajes(prompt)
+    permitidos = _numeros(prompt)
     limpias: list[str] = []
     descartadas: list[str] = []
     for linea in (texto_ia or "").split("\n"):
         es_pick = "PICK" in linea.upper()
-        sin_respaldo = [v for v in _porcentajes(linea) if not any(abs(v - p) <= _TOLERANCIA_PORCENTAJE for p in permitidos)]
-        if sin_respaldo and not es_pick:
+        pct_sin_respaldo = [v for v in _porcentajes(linea) if not any(abs(v - p) <= _TOLERANCIA_PORCENTAJE for p in permitidos_pct)]
+        num_sin_respaldo = [
+            m for m in _NUMERO.findall(linea)
+            if _cifra_sin_respaldo(float(m.replace(",", ".")), bool(re.search(r"[.,]", m)), permitidos)
+            and not any(abs(float(m.replace(",", ".")) - p) <= _TOLERANCIA_PORCENTAJE for p in permitidos_pct)
+        ]
+        if (pct_sin_respaldo or num_sin_respaldo) and not es_pick:
             descartadas.append(linea.strip())
         else:
             limpias.append(linea)

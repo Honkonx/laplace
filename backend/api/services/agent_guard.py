@@ -3,9 +3,9 @@
 Todo es configuración por entorno (sin tocar `core/config.py`, que es de otro frente):
 
 - `AGENT_IA_MAX_POR_MINUTO` (def. 5) y `AGENT_IA_MAX_POR_DIA` (def. 60; admin x5): tope de
-  llamadas con `usar_ia=true` por usuario. Contadores en memoria del proceso (un solo proceso
-  por componente; si API y worker corren separados cada uno lleva su cuenta, el tope efectivo es
-  como máximo el doble).
+  llamadas con `usar_ia=true` por usuario. El tope por minuto vive en memoria del proceso; el del DÍA se
+  guarda en la tabla `agent_uso_diario` y sobrevive a reinicios (MA-51). Si API y worker corren separados
+  comparten el cupo diario por esa tabla.
 - `AGENT_MAX_TAREAS_ACTIVAS` (def. 10): tareas queued/running simultáneas por usuario.
 - `AGENT_SPORTS_TRUSTED_HOSTS`: hosts extra (coma) a los que se permite enviar un Bearer. Loopback
   siempre es confiable.
@@ -60,10 +60,44 @@ _VENTANA_MINUTO: dict[str, list[float]] = {}
 _USO_DIA: dict[tuple[str, str], int] = {}
 
 
+_SEMBRADOS: set[tuple[str, str]] = set()
+
+
 def resetear_contadores() -> None:
     with _LOCK:
         _VENTANA_MINUTO.clear()
         _USO_DIA.clear()
+        _SEMBRADOS.clear()
+
+
+def _sembrar_dia(clave: str, hoy: str) -> None:
+    """Primera vez que este proceso ve (clave, día): recupera lo ya gastado de la base, para que un reinicio no devuelva el cupo (MA-51). Llamar con `_LOCK` tomado.
+    Si la base no está disponible (o la tabla aún no existe) el contador sigue en memoria, que es el comportamiento anterior."""
+    if (clave, hoy) in _SEMBRADOS:
+        return
+    _SEMBRADOS.add((clave, hoy))
+    try:
+        from backend.api.db.session import SessionLocal
+        from backend.api.models.agent_runtime import AgentUsoDiario
+
+        with SessionLocal() as db:
+            fila = db.get(AgentUsoDiario, (clave, hoy))
+            if fila is not None:
+                _USO_DIA[(clave, hoy)] = max(_USO_DIA.get((clave, hoy), 0), int(fila.usos))
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def _guardar_dia(clave: str, hoy: str, usos: int) -> None:
+    try:
+        from backend.api.db.session import SessionLocal
+        from backend.api.models.agent_runtime import AgentUsoDiario
+
+        with SessionLocal() as db:
+            db.merge(AgentUsoDiario(clave=clave, dia=hoy, usos=usos))
+            db.commit()
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def consumir_ia(usuario: str, *, es_admin: bool = False, cantidad: int = 1) -> None:
@@ -73,6 +107,7 @@ def consumir_ia(usuario: str, *, es_admin: bool = False, cantidad: int = 1) -> N
     ahora = time.monotonic()
     hoy = date.today().isoformat()
     with _LOCK:
+        _sembrar_dia(usuario, hoy)
         ventana = [t for t in _VENTANA_MINUTO.get(usuario, []) if ahora - t < 60]
         if len(ventana) + cantidad > por_minuto:
             _VENTANA_MINUTO[usuario] = ventana
@@ -84,6 +119,7 @@ def consumir_ia(usuario: str, *, es_admin: bool = False, cantidad: int = 1) -> N
         for clave in [k for k in _USO_DIA if k[1] != hoy]:
             del _USO_DIA[clave]
         _USO_DIA[(usuario, hoy)] = _USO_DIA.get((usuario, hoy), 0) + cantidad
+        _guardar_dia(usuario, hoy, _USO_DIA[(usuario, hoy)])
 
 
 def consumir_prediccion(usuario: str, *, cantidad: int = 1) -> None:
@@ -96,6 +132,7 @@ def consumir_prediccion(usuario: str, *, cantidad: int = 1) -> None:
     ahora = time.monotonic()
     hoy = date.today().isoformat()
     with _LOCK:
+        _sembrar_dia(clave, hoy)
         ventana = [t for t in _VENTANA_MINUTO.get(clave, []) if ahora - t < 60]
         if len(ventana) + cantidad > por_minuto:
             _VENTANA_MINUTO[clave] = ventana
@@ -105,6 +142,31 @@ def consumir_prediccion(usuario: str, *, cantidad: int = 1) -> None:
         ventana.extend([ahora] * cantidad)
         _VENTANA_MINUTO[clave] = ventana
         _USO_DIA[(clave, hoy)] = _USO_DIA.get((clave, hoy), 0) + cantidad
+        _guardar_dia(clave, hoy, _USO_DIA[(clave, hoy)])
+
+
+TOKENS_POR_CARACTER = 0.33  # estimación gruesa para español (≈ 3 caracteres por token); solo sirve para un tope, no para facturar
+
+
+def estimar_tokens(*textos: str) -> int:
+    return int(sum(len(t or "") for t in textos) * TOKENS_POR_CARACTER) + 1
+
+
+def tokens_disponibles(usuario: str, *, es_admin: bool = False) -> bool:
+    """¿Le queda presupuesto diario de tokens de IA? (`AGENT_IA_TOKENS_POR_DIA`, def. 60.000; admin x5). Persistente igual que el cupo de llamadas (MA-51, OWASP LLM10)."""
+    tope = entero_env("AGENT_IA_TOKENS_POR_DIA", 60000) * (5 if es_admin else 1)
+    clave, hoy = f"{usuario}:tok", date.today().isoformat()
+    with _LOCK:
+        _sembrar_dia(clave, hoy)
+        return _USO_DIA.get((clave, hoy), 0) < tope
+
+
+def registrar_tokens(usuario: str, tokens: int) -> None:
+    clave, hoy = f"{usuario}:tok", date.today().isoformat()
+    with _LOCK:
+        _sembrar_dia(clave, hoy)
+        _USO_DIA[(clave, hoy)] = _USO_DIA.get((clave, hoy), 0) + max(0, int(tokens))
+        _guardar_dia(clave, hoy, _USO_DIA[(clave, hoy)])
 
 
 def consultar_uso_ia(usuario: str) -> tuple[list[float], int]:

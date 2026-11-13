@@ -130,7 +130,7 @@ def revisar_integridad() -> tuple[str, str]:
         filas = auditar_integridad.auditar(ruta)
     except Exception as exc:  # noqa: BLE001 — diagnóstico
         return "aviso", f"no se pudo revisar: {type(exc).__name__}"
-    huerfanos = [f for f in filas if f["huerfanos"]]
+    huerfanos = [f for f in filas if f["huerfanos"] and not f.get("informativa")]
     return ("aviso" if huerfanos else "ok"), auditar_integridad.resumen(filas)
 
 

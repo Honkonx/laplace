@@ -8,6 +8,7 @@
 | [instalacion.md](instalacion.md) | Instalar, encender, apagar y revisar Laplace en Windows, Linux, macOS y WSL |
 | [configuracion.md](configuracion.md) | El archivo `.env`: qué clave habilita qué |
 | [motor-de-pronostico.md](motor-de-pronostico.md) | Cómo se calcula un pronóstico, niveles de evidencia y cómo se mide |
+| [terminos-del-modelo.md](terminos-del-modelo.md) | Términos de uso del modelo de pronóstico (no del código) |
 | [telegram-y-agente.md](telegram-y-agente.md) | Comandos del bot y del agente |
 | [web-pwa-y-android.md](web-pwa-y-android.md) | Compilar y configurar la web, la PWA y la app Android |
 | [seguridad-y-datos.md](seguridad-y-datos.md) | Secretos, licencias de datos de terceros y límites del producto |

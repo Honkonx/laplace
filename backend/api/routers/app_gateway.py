@@ -76,7 +76,7 @@ async def _accion_juegos(db: Session, client: httpx.AsyncClient, params: dict) -
         if liga_slug:
             buttons = []
             for stage in stages:
-                if ligas_bot.slug_liga(stage.get("Snm") or stage.get("CompN") or "") != liga_slug:
+                if ligas_bot.slug_de_stage(stage) != liga_slug:
                     continue
                 for ev in stage.get("Events", []):
                     if ev.get("Eps") != "NS":

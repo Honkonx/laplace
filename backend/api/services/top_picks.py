@@ -37,6 +37,7 @@ from backend.api.core.config import settings
 from backend.api.db import partidos_repo
 from backend.api.db.cache import guardar_stats_cache, leer_stats_cache
 from backend.api.services import calidad_datos as calidad_datos_svc
+from backend.api.services._http_retry import CuotaApiFootballError, cuerpo_api_football
 from backend.api.services import consenso as consenso_svc
 from backend.api.services import consenso_ia as consenso_ia_svc
 from backend.api.services import motor as motor_svc
@@ -90,7 +91,11 @@ async def _apif_get(client: httpx.AsyncClient, endpoint: str) -> dict:
     try:
         r = await client.get(f"{APIF_BASE}/{endpoint}", headers=_headers(), timeout=12)
         r.raise_for_status()
-        return r.json()
+        return cuerpo_api_football(r)
+    except CuotaApiFootballError as exc:
+        # HTTP 200 con `errors` (plan sin acceso a la temporada, cuota agotada…): antes se leía como «día sin partidos» sin dejar rastro.
+        log.warning("api-football rechazó %s: %s", endpoint, exc)
+        return {"response": []}
     except Exception:
         log.debug("Fallo api-football GET %s", endpoint, exc_info=True)
         return {"response": []}

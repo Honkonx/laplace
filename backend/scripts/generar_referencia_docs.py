@@ -22,6 +22,7 @@ DESTINO = RAIZ / "docs" / "backend" / "referencia"
 AVISO = "> Generado por `backend/scripts/generar_referencia_docs.py` a partir del código. No se edita a mano: se regenera con ese script (una prueba avisa si quedó desactualizado).\n"
 # Mismas reglas que el exportador del público: estos scripts son del repo de trabajo.
 PREFIJOS_SCRIPTS_DEV = ("qa_", "benchmark_", "sandbox_")
+SCRIPTS_QUE_NO_VIAJAN = {"actualizar_resultados_actuales.py"}  # descarga de fuentes con licencia propia: no se publica, así que tampoco figura en la referencia (el privado y el público generan el mismo documento)
 
 
 def _primera_linea(doc: str | None) -> str:
@@ -118,7 +119,7 @@ def referencia_scripts() -> str:
     sal += [f"| `{n}` | {d} |" for n, d in LANZADORES]
     sal += ["", "## `backend/scripts/`", "", "Se ejecutan con el Python del entorno: `python backend/scripts/<nombre>.py --help`.", "", "| Script | Qué hace |", "|---|---|"]
     for ruta in sorted((RAIZ / "backend" / "scripts").glob("*.py")):
-        if ruta.name.startswith("_") or ruta.name.startswith(PREFIJOS_SCRIPTS_DEV):
+        if ruta.name.startswith("_") or ruta.name.startswith(PREFIJOS_SCRIPTS_DEV) or ruta.name in SCRIPTS_QUE_NO_VIAJAN:
             continue
         sal.append(f"| `{ruta.name}` | {_docstring(ruta)} |")
     sal += ["", "## `install/comun/`", "", "| Módulo | Qué hace |", "|---|---|"]

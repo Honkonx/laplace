@@ -5,8 +5,10 @@ alembic/env.py de PAGINA1 — importa los modelos explícitamente, no confía en
 automático).
 """
 from backend.api.models.auditoria import AccionAdminAuditoria, HistorialPlan, IntentoLoginFallido
-from backend.api.models.agent_runtime import AgentApproval, AgentEvent, AgentFeedback, AgentKnowledge, AgentLearningProposal, AgentMemory, AgentMemoryHistory, AgentMessage, AgentPolicyVersion, AgentRun, AgentSession, AgentTask, AgentToolInvocation
+from backend.api.models.agent_runtime import AgentApproval, AgentEvent, AgentFeedback, AgentKnowledge, AgentLearningProposal, AgentMemory, AgentMemoryHistory, AgentMessage, AgentPolicyVersion, AgentRun, AgentSession, AgentTask, AgentToolInvocation, AgentUsoDiario  # noqa: F401
+from backend.api.models.bot_memoria import BotConsentimiento, BotHistorialConsulta, BotPreferencias  # noqa: F401
 from backend.api.models.jobs import Job
+from backend.api.models.ml_modelo import MlConjuntoDatos, MlEntrenamiento, MlEvaluacion, MlModelo, MlMuestra, MlPrediccion, MlSimulacion  # noqa: F401
 from backend.api.models.metricas import EstadoFuenteDeportiva, MetricaIaProveedor
 from backend.api.models.laplace_agents import LaplaceAgentMemoria
 from backend.api.models.partidos import (

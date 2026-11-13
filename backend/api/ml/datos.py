@@ -27,6 +27,9 @@ def _abrir(ruta: Path) -> io.TextIOBase:
     return open(ruta, encoding="utf-8", newline="")
 
 
+RUTA_ACTUAL = RAIZ_REPO / "backend" / "data" / "datos" / "actual" / "resultados_actuales.csv.gz"  # temporada en curso desde football-data.co.uk (el script de actualización de resultados actuales, que no se publica)
+
+
 def _numero(texto: str | None) -> float | None:
     if texto is None or texto == "":
         return None
@@ -34,6 +37,12 @@ def _numero(texto: str | None) -> float | None:
         return float(texto)
     except ValueError:
         return None
+
+
+def _mas_menos(fila: dict, mas: str, menos: str) -> tuple[float, float] | None:
+    """Cuotas (más, menos) de la línea de 2,5 goles, o None si faltan o no son válidas."""
+    o, u = _numero(fila.get(mas)), _numero(fila.get(menos))
+    return (o, u) if o is not None and u is not None and min(o, u) > 1.0 else None
 
 
 def _cuotas(fila: dict, prefijo: str) -> tuple[float, float, float] | None:
@@ -70,9 +79,14 @@ def cargar_partidos(ruta: Path | None = None) -> list[dict]:
                 "local": local, "visitante": visitante,
                 "gl": int(gl), "gv": int(gv),
                 "resultado": "H" if gl > gv else "A" if gv > gl else "D",
+                # estadísticas de partido (44 % de las filas): tiros y tiros a puerta; None si no vienen (el plan de mejoras (repo de trabajo), `registro_experimentos.md`)
+                "tl": _numero(fila.get("tiros_local")), "tv": _numero(fila.get("tiros_visit")),
+                "al": _numero(fila.get("tiros_arco_local")), "av": _numero(fila.get("tiros_arco_visit")),
             }
             for campo in _CAMPOS_CUOTA:
                 p[campo] = _cuotas(fila, campo)
+            p["o25"] = _mas_menos(fila, "over25_prom", "under25_prom")  # más/menos 2,5 promedio de apertura y de cierre (MP-11); nadie del motor las usa
+            p["o25_cierre"] = _mas_menos(fila, "over25_prom_cierre", "under25_prom_cierre")
             partidos.append(p)
     partidos.sort(key=lambda p: (p["dia"], p["liga"], p["local"]))
     return partidos
@@ -95,11 +109,21 @@ def cargar_partidos_con_vivo(
     está en él se descarta. Devuelve (partidos ordenados, info) con `vivos_nuevos` por liga."""
     partidos = cargar_partidos(ruta_maestro)
     ruta = ruta_vivo if ruta_vivo is not None else RUTA_VIVO
-    info: dict = {"maestro": len(partidos), "vivos_leidos": 0, "vivos_duplicados": 0, "vivos_nuevos": {}, "vivos_todos": []}
-    if not ruta.exists():
-        return partidos, info
+    info: dict = {"maestro": len(partidos), "vivos_leidos": 0, "vivos_duplicados": 0, "vivos_nuevos": {}, "vivos_todos": [], "actuales_nuevos": 0}
     vistos = {(p["dia"], p["local"], p["visitante"]) for p in partidos}
     nuevos = []
+    # capa «actual» (temporada en curso de football-data.co.uk): manda sobre la del bot, que solo tiene lo que el bot alcanzó a ver; solo si se usan las rutas por defecto
+    if ruta_maestro is None and ruta_vivo is None and RUTA_ACTUAL.exists():
+        for p in cargar_partidos(RUTA_ACTUAL):
+            if any((p["dia"] + d, p["local"], p["visitante"]) in vistos for d in (0, -1, 1)):
+                continue
+            vistos.add((p["dia"], p["local"], p["visitante"]))
+            nuevos.append({**p, "vivo": True, "actual": True})
+            info["actuales_nuevos"] += 1
+    if not ruta.exists():
+        partidos.extend(nuevos)
+        partidos.sort(key=lambda p: (p["dia"], p["liga"], p["local"]))
+        return partidos, info
     for p in cargar_partidos(ruta):
         info["vivos_leidos"] += 1
         info["vivos_todos"].append(p)  # todos los verificados, también los que el maestro ya trae

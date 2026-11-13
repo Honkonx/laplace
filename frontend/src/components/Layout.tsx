@@ -2,13 +2,14 @@ import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "@/lib/AuthContext";
 import { ThemeToggle } from "./ThemeToggle";
 
-type IconoId = "partidos" | "agente" | "historial" | "estado" | "simulador" | "cuenta";
+type IconoId = "partidos" | "agente" | "historial" | "estado" | "seguimientos" | "simulador" | "cuenta";
 
 const ICONOS: Record<IconoId, string> = {
   partidos: "M4 6h16M4 12h16M4 18h10",
   agente: "M5 6h14v9H9l-4 3V6z",
   historial: "M12 7v5l3 2M4 12a8 8 0 1 0 2.3-5.6M4 5v4h4",
   estado: "M3 12h4l3-7 4 14 3-7h4",
+  seguimientos: "M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9L12 3z",
   simulador: "M5 19V9M12 19V5M19 19v-7",
   cuenta: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-7 8a7 7 0 0 1 14 0",
 };
@@ -25,6 +26,7 @@ const SECCIONES: { to: string; etiqueta: string; icono: IconoId; end?: boolean }
   { to: "/", etiqueta: "Partidos", icono: "partidos", end: true },
   { to: "/agente", etiqueta: "Laplace", icono: "agente" },
   { to: "/historial", etiqueta: "Historial", icono: "historial" },
+  { to: "/seguimientos", etiqueta: "Seguidos", icono: "seguimientos" },
   { to: "/estado", etiqueta: "Estado", icono: "estado" },
   { to: "/simulador", etiqueta: "Simulador", icono: "simulador" },
 ];

@@ -428,7 +428,7 @@ async def _apifootball_predictions(client: httpx.AsyncClient, fixture_id: str) -
             headers={"x-apisports-key": settings.SPORTS_API_KEY}, timeout=10,
         )
         r.raise_for_status()
-        pred = (r.json().get("response") or [{}])[0].get("predictions")
+        pred = (cuerpo_api_football(r).get("response") or [{}])[0].get("predictions")  # un `errors` dentro de un 200 cae en el except y se registra
     except Exception:
         log.warning("api-football predictions fallo fixture_id=%s", fixture_id, exc_info=True)
         return None

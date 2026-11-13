@@ -27,7 +27,8 @@ def test_construir_prompt_canal_con_3_partidos_incluye_datos_reales():
                                       _candidato(local="Nacional", visitante="Peñarol")])
     assert "River vs Boca" in prompt
     assert "Colo Colo vs U de Chile" in prompt
-    assert "Poisson pick: Local (score 70)" in prompt
+    assert "Consenso del sistema: N/D" in prompt  # sin consenso en el candidato de prueba
+    assert "Poisson pick" not in prompt and "Forma pick" not in prompt  # MB-03: módulos que pesan 0 o casi 0
     assert prompt.count("PARTIDO ") == 3
 
 
@@ -60,3 +61,15 @@ def test_parsear_respuesta_canal_divide_por_guiones():
     bloques = parsear_respuesta_canal(texto)
     assert len(bloques) == 3
     assert [b["pick"] for b in bloques] == ["A", "B", "Empate"]
+
+
+def test_el_prompt_del_canal_no_pide_confianza_propia_ni_obliga_a_dar_pick():
+    prompt = construir_prompt_canal([_candidato()])
+    assert "CONFIANZA:" not in prompt and "certeza real" not in prompt and "SIEMPRE da un pick" not in prompt
+    assert "Sin datos" in prompt and "la confianza la calcula el sistema" in prompt
+
+
+def test_el_prompt_del_canal_incluye_el_consenso_del_sistema():
+    c = _candidato(resultado_motor={"consenso": {"pick_final": "Local", "prob_ponderada": {"local": 0.62, "empate": 0.24, "visitante": 0.14}}})
+    prompt = construir_prompt_canal([c])
+    assert "Consenso del sistema: Local (62%)" in prompt

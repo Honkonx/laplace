@@ -61,7 +61,8 @@ def test_formatear_mensaje_con_ia_incluye_bloque_de_claude_y_pick():
     msg = formatear_mensaje_con_ia(_resultado_motor_base(), _combinado_base(), "@LaplaceCanal", "https://t.me/grupo")
     assert "🏆 Boca Juniors vs River Plate" in msg
     assert "🎯 PICK: <b>Boca Juniors</b>" in msg
-    assert "🟢 Confianza: ALTA (78/100) | Bankroll: 3-5%" in msg
+    assert "🟢 Confianza: ALTA (78/100)" in msg
+    assert "Bankroll" not in msg  # sin lenguaje de apuestas (MB-08)
     # el bloque de Claude se corta ANTES de "⚖️ Balance y PICK:" (ese texto no debe duplicarse)
     assert msg.count("⚖️ Balance y PICK:") == 0
     assert "📢 Canal: @LaplaceCanal" in msg
@@ -93,7 +94,8 @@ def test_formatear_mensaje_free_muestra_candado_de_ia():
     assert "🔒 Análisis IA disponible en plan Pro" in msg
     assert "🏆 Boca Juniors vs River Plate" in msg
     assert "🎯 PICK: <b>Local</b>" in msg
-    assert "🥅 Over 2.5: 55.0% | BTTS: 60.0%" in msg
+    # los mercados de goles del Poisson crudo (sin calibrar) ya no se muestran (MB-02); los validados salen del modelo
+    assert "Over 2.5" not in msg and "BTTS" not in msg and "Marcador esperado" not in msg and "Bankroll" not in msg
     # El value bet se calcula con el Poisson (sin evidencia de ventaja): no se muestra.
     assert "Value" not in msg
     assert "💎" not in msg
@@ -184,3 +186,12 @@ def test_pie_comunidad_muestra_solo_lo_configurado():
 def test_el_mensaje_sin_canal_ni_grupo_no_deja_lineas_vacias_de_enlace():
     msg = formatear_mensaje_free(_resultado_motor_base(), "", "")
     assert "Canal:" not in msg and "Grupo de la comunidad" not in msg and 'href=""' not in msg
+
+
+def test_los_goles_validados_del_modelo_se_muestran_y_los_no_validados_no():
+    base = {**_resultado_motor_base(), "modelo_laplace": {"fuente": "modelo_laplace", "degradado": False, "p1x2": {"local": 0.5, "empate": 0.3, "visitante": 0.2},
+                                                           "goles_esperados": {"local": 1.6, "visitante": 1.1, "total": 2.7}, "btts_si": 0.52, "mas_2_5": 0.55, "marcador_mas_probable": "1-1"}}
+    con = formatear_mensaje_free(base, "@c", "https://t.me/g")
+    assert "ambos marcan 52%" in con and "más de 2,5 55%" in con and "marcador 1-1" in con
+    sin = formatear_mensaje_free({**base, "modelo_laplace": {**base["modelo_laplace"], "goles_esperados": None, "btts_si": None, "mas_2_5": None, "marcador_mas_probable": None}}, "@c", "https://t.me/g")
+    assert "ambos marcan" not in sin and "marcador" not in sin.lower().replace("marcador esperado", "") and "Modelo Laplace" in sin

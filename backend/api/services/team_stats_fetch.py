@@ -69,8 +69,9 @@ def extraer_goles_promedio(stats: dict | None) -> tuple[float | None, float | No
     `teams/statistics`, o (None, None) si no hay datos."""
     if not stats:
         return None, None
-    a_favor = ((stats.get("goals") or {}).get("for") or {}).get("average", {}).get("total")
-    en_contra = ((stats.get("goals") or {}).get("against") or {}).get("average", {}).get("total")
+    # `average` puede venir como null (no solo ausente): `.get("average", {})` no lo cubre y fallaba con AttributeError
+    a_favor = (((stats.get("goals") or {}).get("for") or {}).get("average") or {}).get("total")
+    en_contra = (((stats.get("goals") or {}).get("against") or {}).get("average") or {}).get("total")
     try:
         return (float(a_favor) if a_favor is not None else None, float(en_contra) if en_contra is not None else None)
     except (TypeError, ValueError):

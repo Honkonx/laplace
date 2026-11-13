@@ -41,7 +41,10 @@ from backend.api.core.config import settings, validar_secretos_arranque  # noqa:
 from backend.api.core.logging_config import configurar_logging  # noqa: E402
 from backend.api.core.rate_limit import limiter  # noqa: E402
 from backend.api.db.session import SessionLocal  # noqa: E402
-from backend.api.routers import admin, agent, app_gateway, auth, deportivo, partidos, prediccion_web, resultados, scheduler, simulador, track_record, web, web_catalog  # noqa: E402
+from fastapi.exceptions import RequestValidationError  # noqa: E402
+
+from backend.api.core.errores_validacion import manejador_validacion  # noqa: E402
+from backend.api.routers import admin, agent, app_gateway, auth, deportivo, ml_capacidades, ml_modelo, partidos, prediccion_web, resultados, scheduler, seguimientos, simulador, track_record, web, web_catalog  # noqa: E402
 
 log = logging.getLogger("laplace.main")
 
@@ -126,6 +129,83 @@ def _alertar_creditos_odds(db) -> None:
     restante = consumo_odds_hoy(db).get("restante_api")
     if debe_alertar_creditos(db, restante):
         emitir_alerta("odds_creditos_bajos", {"restante": restante})
+
+
+async def _job_actualizar_resultados_actuales() -> None:
+    """06:15 (Chile): resultados de la temporada en curso desde football-data.co.uk → capa `actual` del conjunto de datos; el simulador y el modelo usan datos de hoy, no de la última descarga."""
+    if not settings.RESULTADOS_ACTUALES_AUTOMATICO:
+        return
+    try:
+        import asyncio
+
+        from backend.api.services import simulador_propio
+
+        try:
+            from backend.scripts import actualizar_resultados_actuales as act
+        except ImportError:  # la instalación pública no trae el actualizador (descarga de fuentes con licencia propia): se omite sin ruido
+            log.info("el actualizador de resultados actuales no está en esta instalación: se omite")
+            return
+
+        r = await asyncio.to_thread(act.actualizar)
+        simulador_propio.limpiar_cache()
+        log.info("resultados actuales: %d partidos, escrito=%s", r["total"], r["escrito"])
+    except Exception:  # noqa: BLE001 — sin red o la fuente caída: se sigue con lo que ya hay
+        log.exception("no se pudieron actualizar los resultados actuales")
+
+
+async def _job_estado_vivo() -> None:
+    """06:40 y 13:40 (Chile): reconstruye en la base la memoria del modelo (estado por equipo de cada liga) con maestro + capa en vivo + capa actual, después de que entren los resultados nuevos."""
+    if not settings.ESTADO_VIVO_AUTOMATICO:
+        return
+    try:
+        import asyncio
+
+        from backend.api.ml.laplace import estado_vivo
+
+        def _reconstruir() -> dict:
+            with SessionLocal() as db:
+                return estado_vivo.reconstruir(db)
+
+        r = await asyncio.to_thread(_reconstruir)
+        log.info("estado vivo del modelo: %s", r)
+    except Exception:  # noqa: BLE001 — sin esto el modelo sigue con el estado del artefacto
+        log.exception("no se pudo reconstruir el estado vivo del modelo")
+
+
+async def _job_avisos_favoritos() -> None:
+    """Aviso de las 08:30 (Chile) con los partidos de hoy de los favoritos, solo a quien lo activó; apagado por defecto."""
+    if not settings.AVISOS_FAVORITOS:
+        return
+    from backend.api.services import avisos_favoritos
+
+    async with httpx.AsyncClient() as client:
+        with SessionLocal() as db:
+            try:
+                from datetime import datetime
+
+                ahora = datetime.now(TZ_CHILE)
+                resumen = await avisos_favoritos.enviar_avisos(db, client, ahora.strftime("%Y-%m-%d"), pronostico=avisos_favoritos.pronostico_del_modelo, ahora=ahora)
+                log.info("avisos de favoritos: %s", resumen)
+            except Exception:  # noqa: BLE001 — un aviso fallido no debe afectar al resto del planificador
+                log.exception("avisos de favoritos falló")
+
+
+async def _job_avisos_resultados() -> None:
+    """Final de los partidos ya avisados (MS-4): varias veces al día, solo en horario activo y solo si hay un final nuevo; apagado por defecto igual que los avisos."""
+    if not settings.AVISOS_FAVORITOS:
+        return
+    from datetime import datetime
+
+    from backend.api.services import avisos_favoritos
+
+    async with httpx.AsyncClient() as client:
+        with SessionLocal() as db:
+            try:
+                resumen = await avisos_favoritos.enviar_resultados(db, client, ahora=datetime.now(TZ_CHILE))
+                if resumen["enviados"] or resumen["fallidos"]:
+                    log.info("avisos de resultado: %s", resumen)
+            except Exception:  # noqa: BLE001 — un aviso fallido no debe afectar al resto del planificador
+                log.exception("avisos de resultado falló")
 
 
 async def _job_verificar_fuentes() -> None:
@@ -253,6 +333,20 @@ async def _job_reajustar_modelos() -> None:
             scheduler_repo.registrar_run(db, JOB_REAJUSTE_MODELOS, ok=False, detalle="excepcion inesperada")
 
 
+async def _job_modelo_laplace() -> None:
+    """Evalúa cada día el modelo Laplace (sombra y activo) contra los resultados verificados y avisa al reunir evidencia. La lógica vive en `ml/laplace/jobs.py`."""
+    from backend.api.ml.laplace import jobs
+
+    await jobs.evaluar_modelo_diario(SessionLocal)
+
+
+async def _job_reentreno_laplace() -> None:
+    """Reentrena cada semana el modelo Laplace en un subproceso y lo promueve solo si pasa las guardas. La lógica vive en `ml/laplace/jobs.py`."""
+    from backend.api.ml.laplace import jobs
+
+    await jobs.reentrenar_semanal(SessionLocal)
+
+
 async def _job_reset_jobs_colgados() -> None:
     """Marca como error los análisis que quedaron en «procesando» porque el proceso murió a mitad.
 
@@ -266,6 +360,10 @@ async def _job_reset_jobs_colgados() -> None:
     with SessionLocal() as db:
         resultado = jobs_repo.reset_jobs_colgados(db, timeout_min=15)
         if resultado["reseteados"]:
+            from backend.api.services import jobs_recuperacion
+
+            async with httpx.AsyncClient() as client:
+                await jobs_recuperacion.notificar_interrumpidos(client, resultado["detalle"])
             log.warning(
                 "reset_jobs_colgados: %d job(s) huérfano(s) marcados como error: %s",
                 resultado["reseteados"], [d["job_id"] for d in resultado["detalle"]],
@@ -341,7 +439,17 @@ async def _job_laplace_agents() -> None:
 async def lifespan(app: FastAPI):
     configurar_logging()
     validar_secretos_arranque(settings)
+    from backend.api.core.esquema import asegurar_esquema
+
+    asegurar_esquema()  # incidente 2026-11-11: código nuevo contra una base sin migrar
     app.state.http_client = httpx.AsyncClient()
+    try:  # H-010: los análisis que quedaron en vuelo de un proceso anterior se cierran y se avisa a quien los pidió
+        from backend.api.services import jobs_recuperacion
+
+        with SessionLocal() as db:
+            await jobs_recuperacion.recuperar_al_arrancar(db, app.state.http_client)
+    except Exception:  # noqa: BLE001
+        log.exception("no se pudieron recuperar los trabajos interrumpidos")
 
     # Sincronización inicial del agente embebido (main.py expone `agent.router` además de
     # `agent_main.py`). Envuelto en try/except para que nunca sea dependencia dura del bot deportivo.
@@ -372,6 +480,9 @@ async def lifespan(app: FastAPI):
             bot_app = construir_app()
             bot_app.bot_data["http_client"] = app.state.http_client
             await bot_app.initialize()
+            from backend.api.bot.laplace_bot import registrar_menu
+
+            await registrar_menu(bot_app)
             await bot_app.start()
             await bot_app.updater.start_polling()
         except Exception:
@@ -388,10 +499,17 @@ async def lifespan(app: FastAPI):
     # que en producción hoy con n8n.
     ap_scheduler = AsyncIOScheduler(timezone=TZ_CHILE)
     ap_scheduler.add_job(_job_verificar_fuentes, CronTrigger(hour=7, minute=30, timezone=TZ_CHILE), id="fuentes_deportivas_health")
+    ap_scheduler.add_job(_job_actualizar_resultados_actuales, CronTrigger(hour=6, minute=15, timezone=TZ_CHILE), id="resultados_actuales")
+    ap_scheduler.add_job(_job_estado_vivo, CronTrigger(hour="6,13", minute=40, timezone=TZ_CHILE), id="estado_vivo_modelo")
+    ap_scheduler.add_job(_job_avisos_favoritos, CronTrigger(hour=8, minute=30, timezone=TZ_CHILE), id="avisos_favoritos")
+    ap_scheduler.add_job(_job_avisos_resultados, CronTrigger(hour="11,15,19,21", minute=10, timezone=TZ_CHILE), id="avisos_resultados")
     # Auto-evaluación diaria (laplace-agents) — corre ANTES de Top Picks (9am) para que la
     # mayoría de los partidos de liga conocida del día ya estén analizados/cacheados cuando
     # arranca el resto del día. Ver `_job_laplace_agents` arriba.
     ap_scheduler.add_job(_job_laplace_agents, CronTrigger(hour=8, minute=0, timezone=TZ_CHILE), id="laplace_agents_autoeval")
+    # Dos pasadas al día: 07:45 y 16:45 (después de que los refrescos de las 07:15 y 15:15 dejaron cargados los partidos de hoy y mañana).
+    ap_scheduler.add_job(_job_modelo_laplace, CronTrigger(hour="7,16", minute=45, timezone=TZ_CHILE), id="modelo_laplace_sombra")
+    ap_scheduler.add_job(_job_reentreno_laplace, CronTrigger(day_of_week="sun", hour=4, minute=30, timezone=TZ_CHILE), id="modelo_laplace_reentreno")
     ap_scheduler.add_job(_job_top_picks, CronTrigger(hour=9, minute=0, timezone=TZ_CHILE), id="wfd_top_picks")
     ap_scheduler.add_job(_job_resultados, CronTrigger(hour="*/2", minute=0, timezone=TZ_CHILE), id="wfe_resultados_2h")
     ap_scheduler.add_job(_job_resultados, CronTrigger(hour=7, minute=0, timezone=TZ_CHILE), id="wfe_resultados_7am")
@@ -441,6 +559,7 @@ app = FastAPI(
 # `RateLimitExceeded` se traduzca a un 429 real en vez de propagar como error 500.
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RequestValidationError, manejador_validacion)  # un cuerpo con NaN daba 500 en vez de 422
 
 # CORS — sin este middleware, un navegador bloquea cualquier llamada de `frontend/` (Astro)
 # a esta API si algún endpoint se llega a llamar directo desde el cliente. Origen(es)
@@ -459,6 +578,8 @@ if settings.cors_origins_list:
     )
 
 app.include_router(deportivo.router)
+app.include_router(ml_modelo.router)
+app.include_router(ml_capacidades.router)
 app.include_router(partidos.router)
 app.include_router(resultados.router)
 app.include_router(scheduler.router)
@@ -470,6 +591,7 @@ app.include_router(prediccion_web.router)
 app.include_router(admin.router)
 app.include_router(track_record.router)
 app.include_router(agent.router)
+app.include_router(seguimientos.router)
 app.include_router(web_catalog.router)
 
 # Alias de compatibilidad — la app Android instalada hoy (LaplaceApi.kt) llama a
@@ -484,7 +606,11 @@ app.add_api_route("/webhook/kairos-app", app_gateway.deportivo, methods=["POST"]
 @app.get("/health")
 def health() -> dict:
     """Healthcheck mínimo del backend deportivo, independiente de Telegram y del agente."""
-    return {"status": "ok", "component": "sports-bot", "version": app.version}
+    from backend.api.core.esquema import estado_esquema
+    from backend.api.services import consenso as _consenso
+
+    return {"status": "ok", "component": "sports-bot", "version": app.version,
+            "consenso": {"contrato": _consenso.CONTRATO_CONSENSO, "pesos": dict(_consenso.PESOS_BASE)}, "esquema": estado_esquema()}  # MB-44: el agente registra esto como estado de la pieza «bot»
 
 
 @app.get("/api/v1/health")

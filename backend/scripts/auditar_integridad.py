@@ -17,14 +17,21 @@ RAIZ = Path(__file__).resolve().parents[2]
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
-# (tabla hija, columna hija, tabla padre, columna padre)
+# (tabla hija, columna hija, tabla padre, columna padre, informativa)
+# `informativa`: la relación hacia `partidos_dia` NO es una clave foránea posible: esa tabla se purga a los 90 días (`limpiar_partidos_dia_viejos`), así que un hijo sin
+# padre es retención, no corrupción. Se mide, pero no cuenta como aviso.
 RELACIONES = (
-    ("jobs", "device_id_app", "usuarios", "device_id"),
-    ("jobs", "match_id", "partidos_dia", "match_id"),
-    ("analisis_comparativo", "partido_id", "partidos_dia", "match_id"),
-    ("uso_diario_app", "device_id", "usuarios", "device_id"),
-    ("agent_messages", "session_id", "agent_sessions", "id"),
-    ("agent_runs", "session_id", "agent_sessions", "id"),
+    ("jobs", "device_id_app", "usuarios", "device_id", False),
+    ("jobs", "match_id", "partidos_dia", "match_id", True),
+    ("analisis_comparativo", "partido_id", "partidos_dia", "match_id", True),
+    ("uso_diario_app", "device_id", "usuarios", "device_id", False),
+    ("agent_messages", "session_id", "agent_sessions", "id", False),
+    ("agent_runs", "session_id", "agent_sessions", "id", False),
+    ("ml_muestras", "conjunto_id", "ml_conjuntos_datos", "id", False),
+    ("ml_simulaciones", "conjunto_id", "ml_conjuntos_datos", "id", False),
+    ("ml_entrenamientos", "conjunto_id", "ml_conjuntos_datos", "id", False),
+    ("ml_predicciones", "modelo_id", "ml_modelos", "id", False),
+    ("ml_evaluaciones", "modelo_id", "ml_modelos", "id", False),
 )
 
 
@@ -37,7 +44,7 @@ def auditar(ruta: Path) -> list[dict]:
     conexion = sqlite3.connect(f"file:{Path(ruta).as_posix()}?mode=ro", uri=True)
     try:
         filas = []
-        for hija, col_h, padre, col_p in RELACIONES:
+        for hija, col_h, padre, col_p, informativa in RELACIONES:
             if col_h not in _columnas(conexion, hija) or col_p not in _columnas(conexion, padre):
                 continue
             con_valor = f'"{col_h}" is not null and "{col_h}" != \'\''
@@ -47,16 +54,16 @@ def auditar(ruta: Path) -> list[dict]:
                 f'and not exists (select 1 from "{padre}" p where p."{col_p}" = h."{col_h}")'
             ).fetchone()[0]
             filas.append({"relacion": f"{hija}.{col_h} → {padre}.{col_p}", "con_valor": total, "huerfanos": huerfanos,
-                          "porcentaje": round(100 * huerfanos / total, 1) if total else 0.0})
+                          "porcentaje": round(100 * huerfanos / total, 1) if total else 0.0, "informativa": informativa})
         return filas
     finally:
         conexion.close()
 
 
 def resumen(filas: list[dict]) -> str:
-    con = [f for f in filas if f["huerfanos"]]
+    con = [f for f in filas if f["huerfanos"] and not f.get("informativa")]
     if not con:
-        return f"{len(filas)} relaciones lógicas sin huérfanos"
+        return f"{len(filas)} relaciones lógicas sin huérfanos reales"
     return "huérfanos en " + "; ".join(f"{f['relacion']}: {f['huerfanos']}/{f['con_valor']}" for f in con[:3]) + (" …" if len(con) > 3 else "")
 
 
@@ -80,9 +87,9 @@ def main() -> int:
     filas = auditar(ruta)
     print(f"{'Relación':58s} {'Con valor':>10s} {'Huérfanos':>10s} {'%':>6s}")
     for f in filas:
-        print(f"{f['relacion']:58s} {f['con_valor']:10d} {f['huerfanos']:10d} {f['porcentaje']:6.1f}")
+        print(f"{f['relacion']:58s} {f['con_valor']:10d} {f['huerfanos']:10d} {f['porcentaje']:6.1f}" + ("  (informativa: se purga a los 90 días)" if f["informativa"] else ""))
     print(resumen(filas))
-    return 1 if args.estricto and any(f["huerfanos"] for f in filas) else 0
+    return 1 if args.estricto and any(f["huerfanos"] and not f["informativa"] for f in filas) else 0
 
 
 if __name__ == "__main__":

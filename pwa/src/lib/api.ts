@@ -18,6 +18,8 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** Segundos indicados por el header Retry-After (429), si el backend lo envió. */
+    public retryAfter?: number,
   ) {
     super(message);
     this.name = "ApiError";
@@ -28,7 +30,7 @@ function obtenerToken(): string | null {
   return localStorage.getItem("laplace_token") ?? localStorage.getItem("laplace_web_token");
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = obtenerToken();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -45,7 +47,8 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     } catch {
       // respuesta sin JSON — nos quedamos con el mensaje genérico
     }
-    throw new ApiError(res.status, mensaje);
+    const espera = Number(res.headers.get("Retry-After"));
+    throw new ApiError(res.status, mensaje, Number.isFinite(espera) && espera > 0 ? espera : undefined);
   }
   return res.json() as Promise<T>;
 }
@@ -176,17 +179,42 @@ export async function pedirPrediccion(partido: {
 
 // ---- Simulador de liga ----
 
+export interface PuntosSimulados {
+  p05: number;
+  p50: number;
+  p95: number;
+  media: number;
+}
+
+export interface LigaSimulable {
+  slug: string;
+  nombre: string;
+  disponible: boolean;
+  temporada?: string;
+  datos_hasta?: string;
+  partidos_pendientes?: number;
+  motivo?: string;
+}
+
 export interface ResultadoSimulador {
   ok: boolean;
   razon?: string;
   liga_slug?: string;
   liga_nombre?: string;
+  temporada?: string;
   n_simulaciones?: number;
   partidos_pendientes?: number;
+  partidos_jugados?: number;
+  datos_hasta?: string;
+  aviso?: string;
   tabla?: Record<
     string,
-    { prob_campeon: number; prob_copa: number; prob_descenso: number; posicion_promedio: number }
+    { prob_campeon: number; prob_copa: number; prob_descenso: number; posicion_promedio: number; puntos?: PuntosSimulados }
   >;
+}
+
+export async function ligasSimulables() {
+  return request<{ ligas: LigaSimulable[]; requiere: string; mensaje: string }>("/api/v1/simulador");
 }
 
 export async function simularLiga(ligaSlug: string) {
@@ -199,9 +227,11 @@ export interface SesionUsuario {
   token: string;
   username: string;
   plan: string;
+  // rol — separado de plan (igual que frontend/): «admin» ya no vive como plan.
+  rol: string;
 }
 
-export async function registrarse(username: string, password: string, termsAccepted = true) {
+export async function registrarse(username: string, password: string, termsAccepted: boolean) {  // sin valor por defecto: aceptar los términos es un acto de la persona (H-021)
   // origen: el backend valida contra ORIGENES_VALIDOS = {"app", "web"} (backend/api/routers/
   // auth.py) — no existe un tercer valor "pwa"; un registro real con "pwa" devolvería 400. La
   // PWA es una superficie web (browser, JWT vía Authorization), así que usa "web" — mismo
@@ -230,7 +260,7 @@ export async function cerrarSesion() {
 }
 
 export async function quienSoy() {
-  return request<{ username: string; plan: string; device_id: string; activo_hasta?: string | null }>("/api/v1/auth/me");
+  return request<{ username: string; plan: string; rol?: string; device_id: string; activo_hasta?: string | null }>("/api/v1/auth/me");
 }
 
 export interface RespuestaActivarCodigo {
@@ -298,4 +328,26 @@ export async function listarSubagentesAgente() {
 
 export async function listarPropuestasAgente() {
   return requestAt<{ proposals: AgentProposal[] }>(AGENT_URL, "/api/v1/agent/learning/proposals");
+}
+
+// ---- Historial y estado (mismas llamadas que frontend/) ----
+
+export interface PrecisionUsuario { picks_consultados: number; sin_pronostico: number; verificados: number; aciertos: number; pendientes: number; acierto_pct: number | null; por_confianza: Record<string, { verificados: number; aciertos: number }>; muestra_minima: number; concluyente: boolean; nota: string; }
+
+export async function obtenerPrecisionUsuario() { return request<PrecisionUsuario>("/api/v1/web/history/accuracy"); }
+
+export async function obtenerHistorialWeb() { return request<{ total: number; items: Array<{ id: number; date: string; league: string | null; home: string | null; away: string | null; pick: string | null; confidence: string | null; created_at: string }> }>("/api/v1/web/history"); }
+
+export async function obtenerTrackRecord() { return request<{ volumen_real: { total?: number; evaluados?: number }; pick_final: { winrate?: number | null; muestra?: number }; brier_score: { valor?: number | null; muestra?: number }; rps: { rps_promedio: number | null; muestra: number; confiable: boolean; nota: string }; advertencia_general?: string }>("/api/v1/track-record"); }
+
+export interface FuenteDeportiva { id: string; configured: boolean; role: string; healthy: boolean | null; status_http: number | null; latency_ms: number | null; quota_remaining: string | null; detail: string | null; last_verified: string | null; }
+
+export async function obtenerFuentesDeportivas() {
+  return request<{ sources: FuenteDeportiva[]; note: string }>("/api/v1/admin/sports/fuentes");
+}
+
+export interface JobScheduler { ultimo_exitoso_en: string | null; ultima_corrida_en: string | null; ultima_corrida_ok: boolean | null; estado: string; atrasado: boolean; edad_minutos: number | null; ventana_minutos: number; }
+
+export async function obtenerEstadoScheduler() {
+  return request<{ scheduler_corriendo: boolean; saludable: boolean; jobs: Record<string, JobScheduler> }>("/api/v1/scheduler/status");
 }

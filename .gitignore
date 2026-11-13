@@ -98,3 +98,16 @@ backend/data/datos/football-data-org/raw/
 # Instalación portable (2026-11-09): runtimes descargados y paquetes generados
 runtime/
 dist-portable/
+
+# Modelos entrenados del modelo Laplace (datos derivados: no se versionan ni se publican)
+backend/api/ml/artefactos/laplace/
+backend/data/datos/resultados/evaluacion_modelo_laplace.json
+backend/data/datos/resultados/afinacion_modelo_laplace.json
+
+# binarios del núcleo en Go (se compilan con scripts/construir_go.py)
+modelo/go/bin/
+modelo/rust/bin/
+runtime/bin/
+
+# caché de Hypothesis (generada al correr las pruebas; contiene rutas de la máquina de quien las corre)
+.hypothesis/

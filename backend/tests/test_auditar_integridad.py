@@ -38,7 +38,8 @@ def test_cuenta_huerfanos_e_ignora_vacios_y_nulos(modulo, base):
     d = por["jobs.device_id_app → usuarios.device_id"]
     assert (d["con_valor"], d["huerfanos"], d["porcentaje"]) == (2, 1, 50.0)
     m = por["jobs.match_id → partidos_dia.match_id"]
-    assert (m["con_valor"], m["huerfanos"]) == (4, 1)
+    assert (m["con_valor"], m["huerfanos"], m["informativa"]) == (4, 1, True)   # partidos_dia se purga: informativa, no cuenta como aviso
+    assert d["informativa"] is False
 
 
 def test_omite_relaciones_cuyas_tablas_no_existen(modulo, base):
@@ -64,3 +65,14 @@ def test_el_modo_estricto_sale_con_1_si_hay_huerfanos(modulo, base, monkeypatch)
 
 def test_resumen_dice_cuando_no_hay_huerfanos(modulo):
     assert "sin huérfanos" in modulo.resumen([{"relacion": "a", "con_valor": 3, "huerfanos": 0, "porcentaje": 0.0}])
+
+
+def test_los_huerfanos_informativos_no_cuentan_ni_en_el_resumen_ni_en_estricto(modulo, tmp_path, monkeypatch):
+    assert "sin huérfanos" in modulo.resumen([{"relacion": "a", "con_valor": 3, "huerfanos": 2, "porcentaje": 66.7, "informativa": True}])
+    ruta = tmp_path / "t.db"
+    c = sqlite3.connect(ruta)
+    c.executescript("create table partidos_dia(match_id text); create table jobs(device_id_app text, match_id text); insert into jobs values(NULL,'purgado');")
+    c.commit()
+    c.close()
+    monkeypatch.setattr("sys.argv", ["x", "--estricto", "--db", str(ruta)])
+    assert modulo.main() == 0    # el único huérfano es por retención: --estricto no falla

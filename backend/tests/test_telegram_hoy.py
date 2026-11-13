@@ -5,7 +5,7 @@ import asyncio
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
 
-from backend.api.bot import laplace_bot
+from backend.api.bot import laplace_bot, laplace_bot_usuario
 from backend.api.models.partidos import PartidoDia
 from backend.api.services import pronosticables
 
@@ -26,7 +26,7 @@ def _falso_validar(partido: dict) -> tuple[bool, str]:
 
 def _ejecutar(monkeypatch, db_session) -> str:
     monkeypatch.setattr(pronosticables.modelo_historico, "validar_historico", _falso_validar)
-    monkeypatch.setattr(laplace_bot, "SessionLocal", lambda: db_session)
+    monkeypatch.setattr(laplace_bot_usuario, "SessionLocal", lambda: db_session)
     update = MagicMock()
     update.message.reply_html = AsyncMock()
     asyncio.run(laplace_bot.cmd_hoy(update, MagicMock()))

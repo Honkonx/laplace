@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import math
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, timedelta
 
 from backend.api.ml import dixon_coles
@@ -32,6 +32,8 @@ class LigaSintetica:
     ataque: dict[str, float]
     defensa: dict[str, float]
     equipos: list[str] = field(default_factory=list)
+    rho: float = RHO_SINTETICO  # corrección de baja puntuación de la verdad (0 = Poisson independiente)
+    deriva: float = 0.0  # desviación estándar de la fuerza de cada equipo entre temporadas (0 = fuerzas fijas)
 
     def lambdas(self, local: str, visitante: str) -> tuple[float, float]:
         lam_h = math.exp(self.mu + self.gamma + self.ataque[local] - self.defensa[visitante])
@@ -41,16 +43,18 @@ class LigaSintetica:
     def probs_verdaderas(self, local: str, visitante: str) -> tuple[float, float, float]:
         """Probabilidad 1X2 REAL del partido (el oráculo)."""
         lam_h, lam_a = self.lambdas(local, visitante)
-        return dixon_coles.probabilidades_desde_lambdas(lam_h, lam_a, RHO_SINTETICO)
+        return dixon_coles.probabilidades_desde_lambdas(lam_h, lam_a, self.rho)
 
 
 def generar_liga(semilla: int, n_equipos: int = 16, sd_fuerza: float = 0.30, mu: float = 0.15, gamma: float = 0.28,
-                 codigo: str = "ZZZ1", nombre: str = "Liga Sintetica") -> LigaSintetica:
+                 codigo: str = "ZZZ1", nombre: str = "Liga Sintetica", rho: float = RHO_SINTETICO,
+                 deriva: float = 0.0) -> LigaSintetica:
     rng = random.Random(semilla)
     equipos = [f"Club {NOMBRES[i % len(NOMBRES)]}{'' if i < len(NOMBRES) else ' B'}" for i in range(n_equipos)]
     return LigaSintetica(
         codigo=codigo, nombre=nombre, mu=mu, gamma=gamma, equipos=equipos,
         ataque={e: rng.gauss(0, sd_fuerza) for e in equipos}, defensa={e: rng.gauss(0, sd_fuerza) for e in equipos},
+        rho=rho, deriva=deriva,
     )
 
 
@@ -61,6 +65,19 @@ def _poisson(lam: float, rng: random.Random) -> int:
         if p <= limite:
             return k
         k += 1
+
+
+def _marcador_dixon_coles(lam_h: float, lam_a: float, rho: float, rng: random.Random) -> tuple[int, int]:
+    """Marcador muestreado de la matriz de goles con corrección de baja puntuación (solo si rho != 0)."""
+    from backend.api.ml.laplace.pronostico import matriz_goles
+
+    u, acum = rng.random(), 0.0
+    for i, fila in enumerate(matriz_goles(lam_h, lam_a, rho)):
+        for j, p in enumerate(fila):
+            acum += p
+            if u < acum:
+                return i, j
+    return 0, 0
 
 
 def calendario(liga: LigaSintetica, inicio: date, ida_y_vuelta: bool = True) -> list[list[tuple[str, str]]]:
@@ -95,13 +112,24 @@ def cuotas_mercado(probs: tuple[float, float, float], rng: random.Random, margen
 
 
 def simular_temporada(liga: LigaSintetica, inicio: date, semilla: int, temporada: str = "2025/2026") -> list[dict]:
-    """Partidos simulados en el esquema de `ml/datos.py` (con `ronda` y la probabilidad verdadera de cada uno)."""
+    """Partidos simulados en el esquema de `ml/datos.py` (con `ronda` y la probabilidad verdadera de cada uno).
+
+    Con `liga.deriva > 0` la fuerza de cada equipo se perturba una vez en esta temporada (flujo aleatorio aparte,
+    así el flujo de goles con deriva 0 no cambia); con `liga.rho != 0` los goles salen de la matriz Dixon-Coles.
+    """
     rng = random.Random(semilla)
+    if liga.deriva > 0:
+        rng_d = random.Random(f"deriva-{semilla}")
+        liga = replace(liga, ataque={e: v + rng_d.gauss(0, liga.deriva) for e, v in liga.ataque.items()},
+                       defensa={e: v + rng_d.gauss(0, liga.deriva) for e, v in liga.defensa.items()})
     partidos = []
     for numero, ronda in enumerate(calendario(liga, inicio), start=1):
         fecha = inicio + timedelta(days=7 * (numero - 1))
         for local, visitante in ronda:
-            gl, gv = (_poisson(x, rng) for x in liga.lambdas(local, visitante))
+            if liga.rho:
+                gl, gv = _marcador_dixon_coles(*liga.lambdas(local, visitante), liga.rho, rng)
+            else:
+                gl, gv = (_poisson(x, rng) for x in liga.lambdas(local, visitante))
             verdad = liga.probs_verdaderas(local, visitante)
             partidos.append({
                 "liga": liga.codigo, "liga_nombre": liga.nombre, "temporada": temporada, "fecha": fecha,

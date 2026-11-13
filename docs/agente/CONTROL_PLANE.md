@@ -8,6 +8,13 @@ Las 12 herramientas ([`HERRAMIENTAS.md`](HERRAMIENTAS.md)) se listan en `GET /ap
 Las acciones que exigen confirmación crean una aprobación pendiente en `agent_approvals`; solo un administrador puede aprobarla o rechazarla (`GET /api/v1/agent/approvals`, `POST .../approvals/{id}/approve` y `.../reject`).
 La publicación mantiene dos barreras: rol de administrador y el argumento explícito `publish=true`; aprobar una solicitud no añade ese argumento.
 
+## Política de publicación (`services/agent_politica_publicacion.py`)
+El modelo y el bot solo pronostican; **publicar es decisión del agente**. La política es una función pura con tres salidas y sus motivos:
+- `no_publicar`: no hay picks válidos, algún pick tiene menos de 50 % de probabilidad o el lote es de baja confianza.
+- `publicar_con_aprobacion` (por defecto): un administrador confirma (`/publicar confirmo`).
+- `publicar_solo`: solo con `AGENTE_PUBLICA_SOLO=1` **y** al menos 200 pronósticos del motor ya jugados en el laboratorio. Hoy es imposible: no hay esa evidencia.
+`sports.top_picks` (vista previa, sin publicar) devuelve la recomendación en `politica_publicacion`. El trabajo diario de Top Picks del bot (09:00) no pasa por esta política; la política gobierna al agente.
+
 ## Eventos y tareas
 
 `agent_events` registra tareas encoladas, iniciadas, reintentadas, terminadas y canceladas, y subagentes creados. `GET /api/v1/agent/events` devuelve los eventos propios; el administrador ve el conjunto.

@@ -27,6 +27,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO))
 
 from backend.api.ml import datos, vivo  # noqa: E402
+from backend.api.ml.laplace import estado_vivo  # noqa: E402
 
 RUTA_BD = REPO / "backend" / "db" / "bot_deportivo.db"
 
@@ -53,6 +54,13 @@ def construir_resolver():
         if r[0]:
             return r[0], r[2], r[3]
         faltan = [n for n in (c["local"], c["visitante"]) if not mh._resolver_equipo(art, candidatas[0], n)]
+        # Un recién ascendido: la liga es una sola y el OTRO equipo la confirma; el nuevo entra con su nombre sin acentos (si no se parece a ningún equipo conocido). Antes se descartaba y nunca juntaba historia.
+        if len(candidatas) == 1 and len(faltan) == 1:
+            codigo = candidatas[0]
+            nuevo = estado_vivo.plano(faltan[0])
+            if not mh._hay_candidato_ambiguo(art, codigo, mh._acotar(nuevo)):
+                resuelto = {n: mh._resolver_equipo(art, codigo, n) or nuevo for n in (c["local"], c["visitante"])}
+                return codigo, resuelto[c["local"]], resuelto[c["visitante"]]
         return None, "equipo_desconocido", f"{candidatas[0]}: " + " | ".join(faltan)
 
     return resolver, art, mh

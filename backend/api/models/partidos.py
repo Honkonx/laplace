@@ -20,6 +20,7 @@ class PartidoDia(Base):
     liga_slug: Mapped[str | None] = mapped_column(Text, nullable=True)
     liga_nombre: Mapped[str | None] = mapped_column(Text, nullable=True)
     liga_codigo: Mapped[str | None] = mapped_column(Text, nullable=True)
+    liga_pais: Mapped[str | None] = mapped_column(Text, nullable=True)  # país que declara la fuente; con el nombre identifica la competición (ligas_ident)
     liga_logo: Mapped[str | None] = mapped_column(Text, nullable=True)
     local: Mapped[str | None] = mapped_column(Text, nullable=True)
     visitante: Mapped[str | None] = mapped_column(Text, nullable=True)

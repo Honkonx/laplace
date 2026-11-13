@@ -2,7 +2,7 @@
 
 > Generado por `backend/scripts/generar_referencia_docs.py` a partir del código. No se edita a mano: se regenera con ese script (una prueba avisa si quedó desactualizado).
 
-44 tablas, tomadas de los modelos de SQLAlchemy (`backend/api/models/`). SQLite por defecto; PostgreSQL con `DATABASE_URL`. Las fechas se escriben siempre desde Python.
+59 tablas, tomadas de los modelos de SQLAlchemy (`backend/api/models/`). SQLite por defecto; PostgreSQL con `DATABASE_URL`. Las fechas se escriben siempre desde Python.
 
 ## `accion_admin_auditoria`
 
@@ -228,6 +228,14 @@
 
 Índices: `ix_agent_tool_invocations_tool_name` (tool_name); `ix_agent_tool_invocations_user_id` (user_id)
 
+## `agent_uso_diario`
+
+| Columna | Tipo | Nulo | Clave / valor por defecto |
+|---|---|---|---|
+| `clave` | VARCHAR(255) | no | PK |
+| `dia` | VARCHAR(10) | no | PK |
+| `usos` | INTEGER | no | — |
+
 ## `analisis_comparativo`
 
 | Columna | Tipo | Nulo | Clave / valor por defecto |
@@ -322,6 +330,61 @@
 | `datos_json` | TEXT | sí | — |
 | `pick_correcto` | INTEGER | sí | — |
 | `creado_en` | TEXT | no | — |
+
+## `bot_avisos_enviados`
+
+| Columna | Tipo | Nulo | Clave / valor por defecto |
+|---|---|---|---|
+| `id` | INTEGER | no | PK |
+| `user_id` | VARCHAR(64) | no | — |
+| `partido_id` | VARCHAR(64) | no | — |
+| `tipo` | VARCHAR(10) | no | — |
+| `pronostico_json` | TEXT | sí | — |
+| `enviado_en` | VARCHAR(32) | no | — |
+
+Índices: `ix_bot_avisos_enviados_user_id` (user_id)
+
+## `bot_consentimientos`
+
+| Columna | Tipo | Nulo | Clave / valor por defecto |
+|---|---|---|---|
+| `user_id` | VARCHAR(64) | no | PK |
+| `version` | VARCHAR(16) | no | — |
+| `aceptado_en` | VARCHAR(32) | no | — |
+| `revocado_en` | VARCHAR(32) | sí | — |
+
+## `bot_historial_consultas`
+
+| Columna | Tipo | Nulo | Clave / valor por defecto |
+|---|---|---|---|
+| `id` | INTEGER | no | PK |
+| `user_id` | VARCHAR(64) | no | — |
+| `partido_id` | VARCHAR(64) | no | — |
+| `fecha_partido` | VARCHAR(16) | sí | — |
+| `creado_en` | VARCHAR(32) | no | — |
+
+Índices: `ix_bot_historial_consultas_user_id` (user_id)
+
+## `bot_perfil_usuario`
+
+| Columna | Tipo | Nulo | Clave / valor por defecto |
+|---|---|---|---|
+| `user_id` | VARCHAR(64) | no | PK |
+| `zona_horaria` | VARCHAR(40) | sí | — |
+| `estilo` | VARCHAR(12) | sí | — |
+| `mercados` | VARCHAR(80) | sí | — |
+| `actualizado_en` | VARCHAR(32) | no | — |
+
+## `bot_preferencias`
+
+| Columna | Tipo | Nulo | Clave / valor por defecto |
+|---|---|---|---|
+| `user_id` | VARCHAR(64) | no | PK |
+| `equipos_favoritos` | TEXT | sí | — |
+| `idioma` | VARCHAR(8) | no | — |
+| `personalizar` | INTEGER | no | — |
+| `avisos` | INTEGER | no | defecto `0` |
+| `actualizado_en` | VARCHAR(32) | no | — |
 
 ## `cache_consenso`
 
@@ -518,6 +581,166 @@
 
 Índices: `ix_metricas_ia_proveedor_creado_en` (creado_en); `ix_metricas_ia_proveedor_proveedor` (proveedor)
 
+## `ml_conjuntos_datos`
+
+| Columna | Tipo | Nulo | Clave / valor por defecto |
+|---|---|---|---|
+| `id` | INTEGER | no | PK |
+| `nombre` | VARCHAR(120) | no | — |
+| `version` | VARCHAR(40) | no | — |
+| `hash_datos` | VARCHAR(64) | sí | — |
+| `procedencia` | VARCHAR(12) | no | — |
+| `desde` | VARCHAR(10) | sí | — |
+| `hasta` | VARCHAR(10) | sí | — |
+| `filas` | INTEGER | no | — |
+| `ruta` | TEXT | sí | — |
+| `creado_en` | VARCHAR(32) | no | — |
+
+Índices: `ix_ml_conjuntos_datos_nombre` (nombre)
+
+## `ml_entrenamientos`
+
+| Columna | Tipo | Nulo | Clave / valor por defecto |
+|---|---|---|---|
+| `id` | INTEGER | no | PK |
+| `conjunto_id` | INTEGER | no | — |
+| `familia` | VARCHAR(40) | no | — |
+| `semilla` | INTEGER | no | — |
+| `parametros_json` | TEXT | no | — |
+| `commit_codigo` | VARCHAR(40) | sí | — |
+| `estado` | VARCHAR(12) | no | — |
+| `error` | TEXT | sí | — |
+| `inicio` | VARCHAR(32) | sí | — |
+| `fin` | VARCHAR(32) | sí | — |
+
+Índices: `ix_ml_entrenamientos_conjunto_id` (conjunto_id); `ix_ml_entrenamientos_estado` (estado)
+
+## `ml_errores`
+
+| Columna | Tipo | Nulo | Clave / valor por defecto |
+|---|---|---|---|
+| `id` | INTEGER | no | PK |
+| `modelo_id` | INTEGER | no | — |
+| `partido_id` | VARCHAR(64) | no | — |
+| `liga` | VARCHAR(120) | no | — |
+| `fecha` | VARCHAR(10) | no | — |
+| `p_local` | FLOAT | no | — |
+| `p_empate` | FLOAT | no | — |
+| `p_visitante` | FLOAT | no | — |
+| `resultado` | VARCHAR(1) | no | — |
+| `rps` | FLOAT | no | — |
+| `log_loss` | FLOAT | no | — |
+| `tramo` | VARCHAR(8) | no | — |
+| `acierto` | INTEGER | no | — |
+| `creado_en` | VARCHAR(32) | no | — |
+
+Índices: `ix_ml_errores_modelo_id` (modelo_id)
+
+## `ml_estado_vivo`
+
+| Columna | Tipo | Nulo | Clave / valor por defecto |
+|---|---|---|---|
+| `id` | INTEGER | no | PK |
+| `modelo_id` | INTEGER | no | — |
+| `liga` | VARCHAR(40) | no | — |
+| `estado_json` | TEXT | no | — |
+| `hasta_dia` | INTEGER | no | — |
+| `partidos` | INTEGER | no | — |
+| `actualizado_en` | VARCHAR(32) | no | — |
+
+Índices: `ix_ml_estado_vivo_modelo_id` (modelo_id)
+
+## `ml_evaluaciones`
+
+| Columna | Tipo | Nulo | Clave / valor por defecto |
+|---|---|---|---|
+| `id` | INTEGER | no | PK |
+| `modelo_id` | INTEGER | no | — |
+| `ventana_desde` | VARCHAR(10) | sí | — |
+| `ventana_hasta` | VARCHAR(10) | sí | — |
+| `n` | INTEGER | no | — |
+| `log_loss` | FLOAT | sí | — |
+| `brier` | FLOAT | sí | — |
+| `rps` | FLOAT | sí | — |
+| `ece` | FLOAT | sí | — |
+| `cobertura` | FLOAT | sí | — |
+| `referencias_json` | TEXT | sí | — |
+| `origen` | VARCHAR(12) | no | — |
+| `creada_en` | VARCHAR(32) | no | — |
+
+Índices: `ix_ml_evaluaciones_modelo_id` (modelo_id)
+
+## `ml_modelos`
+
+| Columna | Tipo | Nulo | Clave / valor por defecto |
+|---|---|---|---|
+| `id` | INTEGER | no | PK |
+| `nombre` | VARCHAR(80) | no | — |
+| `version` | VARCHAR(60) | no | — |
+| `familia` | VARCHAR(40) | no | — |
+| `tarea` | VARCHAR(40) | no | — |
+| `artefacto_ruta` | TEXT | sí | — |
+| `artefacto_sha256` | VARCHAR(64) | sí | — |
+| `estado` | VARCHAR(12) | no | — |
+| `metricas_json` | TEXT | sí | — |
+| `entrenamiento_id` | INTEGER | sí | — |
+| `promovido_por` | VARCHAR(80) | sí | — |
+| `creado_en` | VARCHAR(32) | no | — |
+
+Índices: `ix_ml_modelos_estado` (estado); `ux_ml_modelos_nombre_version` (nombre, version, único)
+
+## `ml_muestras`
+
+| Columna | Tipo | Nulo | Clave / valor por defecto |
+|---|---|---|---|
+| `id` | INTEGER | no | PK |
+| `conjunto_id` | INTEGER | no | — |
+| `simulacion_id` | INTEGER | sí | — |
+| `partido_id` | VARCHAR(64) | sí | — |
+| `procedencia` | VARCHAR(12) | no | — |
+| `peso` | FLOAT | no | — |
+| `fecha_evento` | VARCHAR(10) | sí | — |
+| `caracteristicas_json` | TEXT | no | — |
+| `etiqueta_json` | TEXT | sí | — |
+| `hash_muestra` | VARCHAR(64) | no | — |
+| `creada_en` | VARCHAR(32) | no | — |
+
+Índices: `ix_ml_muestras_conjunto_fecha` (conjunto_id, fecha_evento); `ix_ml_muestras_simulacion_id` (simulacion_id)
+
+## `ml_predicciones`
+
+| Columna | Tipo | Nulo | Clave / valor por defecto |
+|---|---|---|---|
+| `id` | INTEGER | no | PK |
+| `modelo_id` | INTEGER | no | — |
+| `partido_id` | VARCHAR(64) | sí | — |
+| `entrada_json` | TEXT | no | — |
+| `probabilidades_json` | TEXT | no | — |
+| `goles_json` | TEXT | sí | — |
+| `confianza` | FLOAT | sí | — |
+| `latencia_ms` | FLOAT | sí | — |
+| `canal` | VARCHAR(12) | no | — |
+| `creada_en` | VARCHAR(32) | no | — |
+| `hash_previo` | VARCHAR(64) | sí | — |
+| `hash_fila` | VARCHAR(64) | sí | — |
+
+Índices: `ix_ml_predicciones_modelo_fecha` (modelo_id, creada_en); `ix_ml_predicciones_partido_id` (partido_id)
+
+## `ml_simulaciones`
+
+| Columna | Tipo | Nulo | Clave / valor por defecto |
+|---|---|---|---|
+| `id` | INTEGER | no | PK |
+| `conjunto_id` | INTEGER | sí | — |
+| `grupo` | VARCHAR(120) | sí | — |
+| `semilla` | INTEGER | no | — |
+| `parametros_json` | TEXT | no | — |
+| `tipo` | VARCHAR(12) | no | — |
+| `version_generador` | VARCHAR(40) | no | — |
+| `generada_en` | VARCHAR(32) | no | — |
+
+Índices: `ix_ml_simulaciones_conjunto_id` (conjunto_id); `ix_ml_simulaciones_grupo` (grupo)
+
 ## `partidos_dia`
 
 | Columna | Tipo | Nulo | Clave / valor por defecto |
@@ -527,6 +750,7 @@
 | `liga_slug` | TEXT | sí | — |
 | `liga_nombre` | TEXT | sí | — |
 | `liga_codigo` | TEXT | sí | — |
+| `liga_pais` | TEXT | sí | — |
 | `liga_logo` | TEXT | sí | — |
 | `local` | TEXT | sí | — |
 | `visitante` | TEXT | sí | — |

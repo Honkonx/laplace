@@ -16,7 +16,7 @@ from backend.api.db.jobs_repo import crear_job, crear_job_app
 from backend.api.models.jobs import Job
 from backend.api.models.predicciones import AnalisisComparativo, AnalisisIndividual, AnalisisModulo
 from backend.api.models.usuarios import Usuario
-from backend.api.services import analisis_completo
+from backend.api.services import analisis_completo, analisis_completo_enriquecimiento
 
 
 def _resultado_motor_fake(local="River Plate", visitante="Boca Juniors"):
@@ -547,11 +547,11 @@ def test_enriquecer_partido_marca_datos_de_respaldo_como_no_publicables(db_sessi
     async def _xg(*_): return {"found": False}
 
     monkeypatch.setattr(analisis_completo.gateway, "buscar_fixture_id", _fixture_info)
-    monkeypatch.setattr(analisis_completo, "_standings_o_none", _standings)
+    monkeypatch.setattr(analisis_completo_enriquecimiento, "_standings_o_none", _standings)
     monkeypatch.setattr(analisis_completo.odds_fetch, "obtener_odds_partido", _odds)
     monkeypatch.setattr(analisis_completo.h2h_fetch, "obtener_h2h", _h2h)
-    monkeypatch.setattr(analisis_completo, "_bsd_prediccion_segura", _bsd)
-    monkeypatch.setattr(analisis_completo, "_bsd_xg_seguro", _xg)
+    monkeypatch.setattr(analisis_completo_enriquecimiento, "_bsd_prediccion_segura", _bsd)
+    monkeypatch.setattr(analisis_completo_enriquecimiento, "_bsd_xg_seguro", _xg)
 
     async def _run():
         async with httpx.AsyncClient() as client:
@@ -576,11 +576,11 @@ def _enriquecer_con(db_session, monkeypatch, *, odds_ok, bsd, historico_ok):
     async def _xg(*_): return {"found": False}
 
     monkeypatch.setattr(analisis_completo.gateway, "buscar_fixture_id", _fixture_info)
-    monkeypatch.setattr(analisis_completo, "_standings_o_none", _standings)
+    monkeypatch.setattr(analisis_completo_enriquecimiento, "_standings_o_none", _standings)
     monkeypatch.setattr(analisis_completo.odds_fetch, "obtener_odds_partido", _odds)
     monkeypatch.setattr(analisis_completo.h2h_fetch, "obtener_h2h", _h2h)
-    monkeypatch.setattr(analisis_completo, "_bsd_prediccion_segura", _bsd)
-    monkeypatch.setattr(analisis_completo, "_bsd_xg_seguro", _xg)
+    monkeypatch.setattr(analisis_completo_enriquecimiento, "_bsd_prediccion_segura", _bsd)
+    monkeypatch.setattr(analisis_completo_enriquecimiento, "_bsd_xg_seguro", _xg)
     monkeypatch.setattr(
         analisis_completo.calidad_datos_svc.modelo_historico_svc, "validar_historico",
         lambda d: (historico_ok, "ok" if historico_ok else "fuera de cobertura"),
@@ -626,3 +626,30 @@ def test_resumen_estadistico_para_ia_usa_la_probabilidad_ponderada():
 
 def test_resumen_estadistico_sin_consenso_dice_no_disponible():
     assert analisis_completo._resumen_estadistico({"consenso": {"total_modulos": 0}, "modulos": {}}) == "Motor estadístico no disponible."
+
+
+def _correr_job_con_ia(db_session, mocks, monkeypatch, salida_ia):
+    async def _ia(prompt, max_tokens=1024):
+        return salida_ia
+
+    monkeypatch.setattr(analisis_completo, "generar_texto_ia", _ia)
+    job_id = crear_job(db_session, match_id="999", fecha="20260101", chat_id="12345", user_id="u1", plan="pro")["job_id"]
+
+    async def _run():
+        async with httpx.AsyncClient() as client:
+            await analisis_completo.procesar_job(db_session, client, job_id)
+
+    asyncio.run(_run())
+    return db_session.query(Job).filter(Job.job_id == job_id).first(), mocks[-1][1]
+
+
+def test_ia_con_json_valido_se_renderiza_y_el_job_queda_listo(db_session, mocks, monkeypatch):
+    salida = '{"version": "analisis.v1", "dato_local": "River: 4/5 victorias", "dato_visitante": "Boca: 2/5 victorias", "lectura": "River llega mejor.", "pick": "River Plate"}'
+    job, texto = _correr_job_con_ia(db_session, mocks, monkeypatch, salida)
+    assert job.status == "listo" and "River llega mejor." in texto and "River Plate" in texto and "Bankroll" not in texto
+
+
+def test_ia_con_json_invalido_degrada_a_solo_estadistico_sin_inventar_pick(db_session, mocks, monkeypatch):
+    salida = '{"version": "analisis.v1", "dato_local": "x", "dato_visitante": "y", "lectura": "z", "pick": "Real Madrid"}'
+    job, texto = _correr_job_con_ia(db_session, mocks, monkeypatch, salida)
+    assert job.status == "listo" and "Real Madrid" not in texto and "Lectura" not in texto and "PICK" in texto

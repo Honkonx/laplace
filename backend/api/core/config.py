@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     # Auth simple compartida con la app/web — mismo mecanismo que ya usa WF-A2 hoy
     # (header x-kairos-key), no se introduce JWT en esta parte de la migración.
     KAIROS_AUTH_SECRET: str = "changeme-set-in-env"
+    # Clave del endpoint INTERNO del modelo Laplace (`POST /api/v1/ml/predict/interno`): vacía = endpoint deshabilitado. La usan el laboratorio, scripts e IAs externas de confianza.
+    ML_API_KEY: str = ""
 
     # IDs de administrador (Telegram), lista separada por comas — mismo formato que
     # SPORTS_ADMIN_ID en db_query.py.
@@ -70,7 +72,7 @@ class Settings(BaseSettings):
     GEMINI_MODEL: str = "gemini-flash-lite-latest"
     GEMINI_THINKING_BUDGET: int = 0    # alias siempre-vigente de Google al último flash-lite
     OPENROUTER_API_KEY: str = ""
-    OPENROUTER_MODEL: str = "nvidia/nemotron-3-super-120b-a12b:free"  # el primer :free probado (glm-5.2) dio 429 del pool compartido
+    OPENROUTER_MODEL: str = "baidu/ernie-5.5-flash-preview:free"  # un :free con texto probado el 2026-11-13 (nemotron-3-super ya no es gratis: 404; gemma-4 da 429 del pool compartido; lfm y nemotron-lightning devuelven solo `reasoning`)
 
     # Ollama Cloud: proveedor remoto con API key; Laplace no utiliza Ollama local en runtime.
     #  - ollama_cloud: modelos grandes hospedados en ollama.com (misma API /api/chat, Bearer key).
@@ -100,6 +102,28 @@ class Settings(BaseSettings):
     # modelo degrada esa comparación). 0.4 deja margen para que la prosa de las líneas 📈/H2H/
     # BTTS no sea mecánica, sin la variabilidad alta que tendría el pick con temperatura default.
     AI_TEMPERATURE: float = 0.4
+    # Salida estructurada (JSON `analisis.v1`) del análisis con IA; si la IA responde con el formato de texto antiguo se acepta igual (ver `services/ai_salida.py`).
+    ESTADO_VIVO_AUTOMATICO: bool = True  # cada día (06:40 y 13:40, Chile) reconstruye en la base el estado por equipo del modelo con todo el historial, para que no espere al reentreno del domingo
+    RESULTADOS_ACTUALES_AUTOMATICO: bool = True  # cada día a las 06:15 (Chile) trae la temporada en curso de football-data.co.uk (gratis, ≈ 34 descargas) para el simulador y el modelo
+    ESQUEMA_AUTOMATICO: bool = True  # aplica las migraciones pendientes al arrancar (solo SQLite local; en otros motores solo avisa)
+    AVISOS_FAVORITOS: bool = True  # MB-34/MS-4: aviso de partidos de los favoritos y de su resultado, SOLO a quien lo activó con /avisos on (o diciéndoselo al agente) y mantiene el consentimiento
+    AVISOS_CANAL: str = "agente"  # por qué bot salen: "agente" (el bot del agente, si tiene token) o "bot" (el bot deportivo)
+    AVISOS_HORA_INICIO: int = 8   # horario activo (hora de Chile): fuera de él no se envía ningún aviso
+    AVISOS_HORA_FIN: int = 22
+    AVISOS_MAX_PARTIDOS_24H: int = 6   # partidos avisados por usuario en 24 h (previos y finales)
+    AGENT_PREGUNTAR_VIA: bool = True  # «A vs B» sin vía pregunta «bot o IA»; en False el agente decide y pronostica con el modelo y el bot (MS-3 lo hace ya para lo que se sigue)
+    AI_CRITICO: bool = False  # MB-21: segunda lectura informativa de la IA (coherencia, supuestos dudosos); no cambia cifras ni pick
+    AI_ANALISIS_JSON: bool = True
+    # Sin cuotas, el módulo «histórico» del consenso mezcla Dixon-Coles con el modelo Laplace (55/45). Medido el 2026-11-11 en 43.602 partidos: 1,0205 (Dixon-Coles) y 1,0191 (Laplace) → 1,0179 la mezcla (z = 3,0).
+    CONSENSO_HISTORICO_CON_LAPLACE: bool = True
+    # Quién puede usar IA en el texto libre del bot de Telegram del agente: «nadie», «admin» (por defecto) o «todos» (con el tope diario de IA por usuario).
+    AGENT_TEXTO_LIBRE_IA: str = "admin"
+    # El agente carga el modelo Laplace en su propio proceso (Python puro, 0,6 ms por pronóstico) y solo recurre al HTTP del bot si no puede: así pronostica aunque el bot esté caído (MA-13).
+    AGENT_MODELO_EN_PROCESO: bool = True
+    # Si ni el bot ni el modelo responden, el agente ofrece una hipótesis de IA (rotulada «NO calculada por Laplace», sin porcentajes) cuando la IA está permitida en ese turno (MA-14).
+    AGENT_IA_PURA_AUTOMATICA: bool = True
+    AGENT_FUNCTION_CALLING: bool = False  # MA-34: la IA llama herramientas de lectura con control de cifras en código; necesita un proveedor con herramientas
+    AGENT_PERMISIVIDAD: str = "abierto"  # MA-35 (por defecto abierto desde 2026-11-13): "estricto" = la IA solo redacta pronósticos verificados; "normal" = además charla de fútbol con etiqueta «no verificado»; "abierto" = además fútbol en general (historia, reglas, jugadores, árbitros, fichajes) con la misma etiqueta y sin cifras de partidos; nunca charla fuera del fútbol
 
     # Telegram — canal/grupo/admin usados por WF-A/WF-B/WF-D/WF-E (antes hardcodeados en n8n)
     TELEGRAM_CANAL_ID: str = ""
@@ -138,6 +162,8 @@ class Settings(BaseSettings):
     AGENT_LOCAL_EXECUTOR: bool = True
     ALERTS_ACTIVAS: bool = False
     ALERT_WEBHOOK_URL: str = ""
+    # Enfriamiento por evento: el mismo fallo no se reenvía antes de N segundos (0 = sin enfriamiento). Lo suprimido se cuenta y se informa en el siguiente envío.
+    ALERT_COOLDOWN_SEGUNDOS: int = 600
 
     # CORS — orígenes permitidos para llamadas desde navegador (ej. `frontend/` en Vercel o
     # `astro dev` local, si algún endpoint se termina llamando directo desde el navegador en

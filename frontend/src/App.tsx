@@ -7,7 +7,9 @@ import { Simulador } from "@/pages/Simulador";
 import { Admin } from "@/pages/Admin";
 import { Agente } from "@/pages/Agente";
 import { Historial } from "@/pages/Historial";
+import { Seguimientos } from "@/pages/Seguimientos";
 import { EstadoBot } from "@/pages/EstadoBot";
+import { NoEncontrada } from "@/pages/NoEncontrada";
 
 export function App() {
   return (
@@ -21,7 +23,9 @@ export function App() {
             <Route path="admin" element={<Admin />} />
             <Route path="agente" element={<Agente />} />
             <Route path="historial" element={<Historial />} />
+            <Route path="seguimientos" element={<Seguimientos />} />
             <Route path="estado" element={<EstadoBot />} />
+            <Route path="*" element={<NoEncontrada />} />
           </Route>
         </Routes>
       </BrowserRouter>

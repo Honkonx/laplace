@@ -12,7 +12,10 @@ from contextlib import asynccontextmanager
 import logging
 
 from backend.api.core.config import settings
-from backend.api.routers import agent
+from fastapi.exceptions import RequestValidationError
+
+from backend.api.core.errores_validacion import manejador_validacion
+from backend.api.routers import agent, seguimientos
 from backend.api.db.session import SessionLocal
 from backend.api.services.agent_knowledge import sincronizar_conocimiento_json
 from backend.api.services.task_orchestrator import recuperar_tareas_interrumpidas, reencolar_tareas_pendientes
@@ -22,6 +25,9 @@ log = logging.getLogger("laplace.agent_main")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from backend.api.core.esquema import asegurar_esquema
+
+    asegurar_esquema()
     recuperar_tareas_interrumpidas()
     try:
         with SessionLocal() as db:
@@ -50,7 +56,9 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Laplace Agent", description="Agente superior universal de Laplace", version="0.1.0", lifespan=lifespan)
 if settings.cors_origins_list:
     app.add_middleware(CORSMiddleware, allow_origins=settings.cors_origins_list, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_exception_handler(RequestValidationError, manejador_validacion)
 app.include_router(agent.router)
+app.include_router(seguimientos.router)
 
 
 @app.get("/health")

@@ -25,8 +25,8 @@ API_BASE = "https://api.telegram.org"
 _REINTENTO_DELAYS: tuple[float, ...] = (1.0, 2.0)
 
 
-def _url(metodo: str) -> str:
-    return f"{API_BASE}/bot{settings.TELEGRAM_BOT_TOKEN}/{metodo}"
+def _url(metodo: str, token: str | None = None) -> str:
+    return f"{API_BASE}/bot{token or settings.TELEGRAM_BOT_TOKEN}/{metodo}"
 
 
 async def enviar_mensaje(
@@ -36,6 +36,7 @@ async def enviar_mensaje(
     parse_mode: str = "HTML",
     reply_markup: dict | None = None,
     disable_web_page_preview: bool = False,
+    token: str | None = None,
 ) -> bool:
     """Envía un mensaje, con hasta `len(_REINTENTO_DELAYS)` reintentos (backoff corto) si falla.
     Devuelve True/False — el caller decide qué hacer con un fallo final, nunca se traga el
@@ -52,7 +53,7 @@ async def enviar_mensaje(
     intentos_totales = len(_REINTENTO_DELAYS) + 1
     for intento in range(1, intentos_totales + 1):
         try:
-            r = await client.post(_url("sendMessage"), json=body, timeout=15)
+            r = await client.post(_url("sendMessage", token), json=body, timeout=15)
             r.raise_for_status()
             return True
         except Exception:

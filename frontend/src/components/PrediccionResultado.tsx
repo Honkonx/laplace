@@ -69,6 +69,16 @@ export function PrediccionResultado({ resultado, local, visitante }: Props) {
         </p>
       )}
 
+      {resultado.modelo_laplace && (
+        <p className="text-xs text-text-muted">
+          <span className="text-text-dim">{resultado.modelo_laplace.degradado ? "Respaldo Dixon-Coles" : "Modelo Laplace"} (lectura aparte, no cambia el pick): </span>
+          Local <span className="num">{pct(resultado.modelo_laplace.p1x2.local)}%</span> · Empate <span className="num">{pct(resultado.modelo_laplace.p1x2.empate)}%</span> · Visitante <span className="num">{pct(resultado.modelo_laplace.p1x2.visitante)}%</span>
+          {resultado.modelo_laplace.goles_esperados && (<>{" · goles esperados "}<span className="num">{resultado.modelo_laplace.goles_esperados.local.toFixed(1)}–{resultado.modelo_laplace.goles_esperados.visitante.toFixed(1)}</span></>)}
+          {resultado.modelo_laplace.marcador_mas_probable && (<>{" · marcador probable "}<span className="num">{resultado.modelo_laplace.marcador_mas_probable}</span></>)}
+          {resultado.modelo_laplace.btts_si != null && (<>{" · ambos marcan "}<span className="num">{pct(resultado.modelo_laplace.btts_si)}%</span></>)}
+        </p>
+      )}
+
       {vista.modulos.length > 0 && (
         <details className="group text-xs">
           <summary className="cursor-pointer select-none py-1 text-text-muted hover:text-text">

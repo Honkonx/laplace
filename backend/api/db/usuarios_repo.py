@@ -73,6 +73,25 @@ def verificar_acceso(db: Session, user_id: str) -> dict:
     return {"autorizado": bool(usuario.activo), "plan": usuario.plan, "es_admin": False}
 
 
+PLANES_CON_SIMULADOR = ("pro", "max")
+MENSAJE_SIMULADOR = "El simulador de liga es de los planes pro y max (y de los administradores)."
+
+
+def acceso_simulador(db: Session, user_id: str) -> dict:
+    """¿Puede esta persona usar el simulador público? Solo administradores y planes `pro`/`max` VIGENTES (un plan vencido vale como free). `user_id` puede venir como `telegram:<id>` (agente). Se lee
+    de la base en cada llamada: el claim `plan` de un JWT viejo no concede nada."""
+    uid = (user_id or "").removeprefix("telegram:")
+    usuario = db.query(Usuario).filter(Usuario.device_id == uid).first() if uid else None
+    if uid and (_es_admin(uid) or _tiene_rol_admin(usuario)):
+        return {"permitido": True, "plan": "admin", "motivo": ""}
+    if usuario is None or not usuario.activo:
+        return {"permitido": False, "plan": None, "motivo": MENSAJE_SIMULADOR}
+    vencido = bool(usuario.activo_hasta and usuario.activo_hasta < _hoy())
+    if usuario.plan in PLANES_CON_SIMULADOR and not vencido:
+        return {"permitido": True, "plan": usuario.plan, "motivo": ""}
+    return {"permitido": False, "plan": "free" if vencido else usuario.plan, "motivo": MENSAJE_SIMULADOR}
+
+
 def verificar_limite(db: Session, user_id: str, plan: str) -> dict:
     """Límite diario de análisis con IA para Telegram (plan `pro`=10/día, `max`=30/día,
     `free`=0 pero siempre `puede=True` porque free no pide IA, solo estadístico)."""
@@ -369,9 +388,12 @@ def agregar_favorito_liga(db: Session, user_id: str, liga: str) -> dict:
     if any(l.lower() == liga.lower() for l in actuales):
         return {"agregado": False, "error": "ya_existe", "favoritos": actuales,
                 "mensaje": f'"{liga}" ya está en tus favoritos.'}
-    if len(actuales) >= MAX_FAVORITOS_LIGAS:
+    from backend.api.services import planes_seguimiento  # noqa: PLC0415 — MS-11: el tope depende del plan
+
+    maximo = planes_seguimiento.limites(db, user_id)["ligas"]
+    if len(actuales) >= maximo:
         return {"agregado": False, "error": "limite_alcanzado", "favoritos": actuales,
-                "mensaje": f"Ya tienes {MAX_FAVORITOS_LIGAS} ligas favoritas (el máximo). "
+                "mensaje": f"Ya tienes {maximo} ligas favoritas (el máximo con tu plan). "
                            "Quita una con /favoritos quitar <liga>."}
 
     nuevos = actuales + [liga]

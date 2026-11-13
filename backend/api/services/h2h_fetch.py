@@ -289,6 +289,31 @@ def _ponderar_y_resumir(partidos: list[dict], local: str | None = None, visitant
     }
 
 
+MAX_CRUCES_PROPIOS = 10
+
+
+def _cruces_propios(local: str, visitante: str, liga: str) -> list[dict]:
+    """Cruces entre los dos equipos sacados del historial propio (maestro + resultados actuales + los del bot), más recientes primero.
+
+    Solo si ambos equipos se resuelven a un nombre canónico EXACTO en una misma liga (nada de coincidencias aproximadas: dos equipos homónimos darían cruces que nunca existieron).
+    Los nombres de cada cruce se escriben con los del partido actual, así queda orientado sin adivinar."""
+    from backend.api.services import modelo_historico, simulador_propio
+
+    r = modelo_historico._resolver({"liga": liga, "local": local, "visitante": visitante})  # noqa: SLF001 — mismo resolutor del consenso
+    if not r or not r[0]:
+        return []
+    codigo, _modelo, canon_local, canon_visitante = r
+    cruces = []
+    for p in simulador_propio._partidos():  # noqa: SLF001 — caché de 10 minutos del conjunto completo
+        if p["liga"] != codigo or {p["local"], p["visitante"]} != {canon_local, canon_visitante}:
+            continue
+        mismo_orden = p["local"] == canon_local
+        cruces.append({"local": local if mismo_orden else visitante, "visitante": visitante if mismo_orden else local, "goles_local": p["gl"], "goles_visitante": p["gv"],
+                       "fecha_iso": p["fecha"].isoformat() + "T12:00:00+00:00", "dia": p["dia"]})
+    cruces.sort(key=lambda x: -x["dia"])
+    return cruces[:MAX_CRUCES_PROPIOS]
+
+
 async def obtener_h2h(
     client: httpx.AsyncClient, db: Session, team_id_local: int | None, team_id_visitante: int | None,
     local: str, visitante: str, liga: str, liga_avg_input: float = 2.6,
@@ -313,6 +338,15 @@ async def obtener_h2h(
     # cada equipo: auditoría 2026-10-09. Ahora cae a esas estadísticas y, si tampoco existen, conserva el H2H corto.
     if partidos and len(partidos) >= 3:
         return _ponderar_y_resumir(partidos, local, visitante, get_liga_avg(liga, liga_avg_input) / 2.0)
+
+    # Las fuentes externas dieron menos de 3 cruces (el plan gratis de API-Football no trae la temporada actual y BSD cubre poco): se usa el historial propio, que existe aunque ninguna fuente responda.
+    try:
+        propios = await asyncio.to_thread(_cruces_propios, local, visitante, liga)
+    except Exception:  # noqa: BLE001 — una pieza de respaldo: si falla, sigue la cascada de siempre
+        log.warning("h2h_fetch: no se pudo leer el historial propio", exc_info=True)
+        propios = []
+    if len(propios) >= 3 and len(propios) > len(partidos or []):
+        return {**_ponderar_y_resumir(propios, local, visitante, get_liga_avg(liga, liga_avg_input) / 2.0), "fuente_h2h": "historial_propio"}
 
     desde_stats = await _desde_stats_equipo(client, db, team_id_local, team_id_visitante, league_id, season)
     if desde_stats:

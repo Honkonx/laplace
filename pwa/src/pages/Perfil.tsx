@@ -107,6 +107,12 @@ export function Perfil() {
         </button>
       </div>
 
+      <div className="space-y-2">
+        <Link to="/historial" className="block rounded-xl border border-border bg-surface px-4 py-3.5 text-sm font-medium">Historial y precisión</Link>
+        <Link to="/seguimientos" className="block rounded-xl border border-border bg-surface px-4 py-3.5 text-sm font-medium">Mis seguimientos</Link>
+        <Link to="/estado" className="block rounded-xl border border-border bg-surface px-4 py-3.5 text-sm font-medium">Estado y transparencia</Link>
+      </div>
+
       <p className="text-center text-[11px] text-text-dim">
         Laplace es pronóstico deportivo — nunca casa de apuestas.
       </p>

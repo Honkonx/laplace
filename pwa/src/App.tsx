@@ -5,6 +5,10 @@ import { Home } from "@/pages/Home";
 import { Calendario } from "@/pages/Calendario";
 import { TopPicks } from "@/pages/TopPicks";
 import { Simulador } from "@/pages/Simulador";
+import { NoEncontrada } from "@/pages/NoEncontrada";
+import { Historial } from "@/pages/Historial";
+import { Seguimientos } from "@/pages/Seguimientos";
+import { EstadoBot } from "@/pages/EstadoBot";
 import { Perfil } from "@/pages/Perfil";
 import { Entrar } from "@/pages/Entrar";
 import { Agente } from "@/pages/Agente";
@@ -22,6 +26,10 @@ export function App() {
             <Route path="perfil" element={<Perfil />} />
             <Route path="agente" element={<Agente />} />
             <Route path="entrar" element={<Entrar />} />
+            <Route path="historial" element={<Historial />} />
+            <Route path="seguimientos" element={<Seguimientos />} />
+            <Route path="estado" element={<EstadoBot />} />
+            <Route path="*" element={<NoEncontrada />} />
           </Route>
         </Routes>
       </BrowserRouter>

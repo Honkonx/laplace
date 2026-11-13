@@ -28,7 +28,7 @@ def test_slug_liga_normaliza():
 
 def test_las_ligas_con_partidos_pronosticables_van_primero_y_los_conteos_se_suman(monkeypatch):
     """Auditoría 2026-10-09: 'Ligue 1' de Argelia y de Francia compartían entrada y el menú ofrecía la de Argelia
-    (sin cobertura). Ahora se suma por nombre, se cuentan los partidos con modelo histórico y esos van primero."""
+    (sin cobertura). Ahora cada país es una entrada propia, se cuentan los partidos con modelo histórico y esos van primero."""
     from backend.api.bot import ligas as modulo
 
     monkeypatch.setattr(modulo, "_evento_cubierto", lambda stage, ev: stage.get("Cnm") == "Francia")
@@ -38,5 +38,6 @@ def test_las_ligas_con_partidos_pronosticables_van_primero_y_los_conteos_se_suma
         {"Snm": "Eredivisie", "Cnm": "Países Bajos", "Events": [{"Eps": "NS"}]},
     ]
     ligas = modulo.ligas_con_partidos(stages)
-    assert ligas[0]["nombre"] == "Ligue 1" and ligas[0]["partidos"] == 4 and ligas[0]["cubiertos"] == 1
-    assert ligas[0]["paises"] == ["Argelia", "Francia"]
+    # Cada país es su propia entrada (antes se sumaban y el menú ofrecía la de Argelia junto a la de Francia): la que el bot sabe pronosticar va primero.
+    assert [(l["nombre"], l["partidos"], l["cubiertos"]) for l in ligas[:2]] == [("Ligue 1 (Francia)", 1, 1), ("Ligue 1 (Argelia)", 3, 0)]
+    assert ligas[0]["slug"] != ligas[1]["slug"] and ligas[0]["paises"] == ["Francia"] and ligas[1]["paises"] == ["Argelia"]

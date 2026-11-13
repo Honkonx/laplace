@@ -94,4 +94,30 @@ describe("PrediccionResultado sin pronóstico explicado", () => {
     expect(screen.getByText(/Referencia, no pronóstico/)).toBeInTheDocument();
     expect(screen.getByText(/No distingue a estos dos equipos/)).toBeInTheDocument();
   });
+
+  it("muestra la lectura del modelo Laplace como información aparte, y avisa si es el respaldo", () => {
+    const modelo = { fuente: "modelo_laplace", degradado: false, p1x2: { local: 0.5169, empate: 0.245, visitante: 0.2381 }, goles_esperados: { local: 1.958, visitante: 1.34, total: 3.298 }, btts_si: 0.64, mas_2_5: 0.64, marcador_mas_probable: "1-1" };
+    const consenso = { prob_ponderada: { local: 0.62, empate: 0.24, visitante: 0.14 }, peso_efectivo: { odds: 1 }, modulos_en_consenso: ["odds"] };
+    const { rerender } = render(<PrediccionResultado local="River" visitante="Boca" resultado={base(consenso, { modelo_laplace: modelo })} />);
+    expect(screen.getByText(/Modelo Laplace \(lectura aparte, no cambia el pick\)/)).toBeInTheDocument();
+    expect(screen.getByText("52%")).toBeInTheDocument();
+    expect(screen.getByText("2.0–1.3")).toBeInTheDocument();
+    expect(screen.getByText("1-1")).toBeInTheDocument();
+    rerender(<PrediccionResultado local="River" visitante="Boca" resultado={base(consenso, { modelo_laplace: { ...modelo, degradado: true } })} />);
+    expect(screen.getByText(/Respaldo Dixon-Coles/)).toBeInTheDocument();
+  });
+
+  it("no muestra los mercados de goles que el modelo no validó, pero sí su 1X2", () => {
+    const modelo = { fuente: "modelo_laplace", degradado: false, p1x2: { local: 0.5169, empate: 0.245, visitante: 0.2381 }, goles_esperados: null, btts_si: null, mas_2_5: null, marcador_mas_probable: null };
+    render(<PrediccionResultado local="River" visitante="Boca" resultado={base({ prob_ponderada: { local: 0.62, empate: 0.24, visitante: 0.14 }, peso_efectivo: { odds: 1 }, modulos_en_consenso: ["odds"] }, { modelo_laplace: modelo })} />);
+    expect(screen.getByText("52%")).toBeInTheDocument();
+    expect(screen.queryByText(/goles esperados/)).toBeNull();
+    expect(screen.queryByText(/marcador probable/)).toBeNull();
+    expect(screen.queryByText(/ambos marcan/)).toBeNull();
+  });
+
+  it("no muestra nada del modelo cuando no cubre el partido", () => {
+    render(<PrediccionResultado local="River" visitante="Boca" resultado={base({ prob_ponderada: { local: 0.62, empate: 0.24, visitante: 0.14 }, peso_efectivo: { odds: 1 }, modulos_en_consenso: ["odds"] }, { modelo_laplace: null })} />);
+    expect(screen.queryByText(/Modelo Laplace/)).toBeNull();
+  });
 });

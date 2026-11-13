@@ -35,9 +35,20 @@ ES_WINDOWS = os.name == "nt"
 # Los puertos se pueden cambiar con LAPLACE_PUERTO_BACKEND / LAPLACE_PUERTO_AGENTE (p. ej. para probar una segunda copia). La web
 # compilada espera el agente en el 9100 del mismo equipo: si lo cambias, la pantalla del agente deja de encontrarlo.
 SERVICIOS = {
+    # Microservicio en Go del simulador (opcional: solo se enciende si existen `simd` y el núcleo de Rust; ver `_orden_simulador`). Va primero: el backend necesita su URL.
+    "simulador": {"modulo": "", "puerto": int(os.getenv("LAPLACE_PUERTO_SIMULADOR", "9200")), "descripcion": "servicio del simulador (Go sobre el núcleo de Rust)"},
     "backend": {"modulo": "backend.api.main:app", "puerto": int(os.getenv("LAPLACE_PUERTO_BACKEND", "9001")), "descripcion": "API, bot de Telegram, planificador y web"},
     "agente": {"modulo": "backend.api.agent_main:app", "puerto": int(os.getenv("LAPLACE_PUERTO_AGENTE", "9100")), "descripcion": "agente de chat"},
 }
+
+
+def _orden_simulador() -> tuple[list[str], dict[str, str]] | None:
+    """Comando y variables del microservicio `simd`, o None si faltan él o el núcleo de Rust (entonces el simulador usa el binario directo o Python)."""
+    ext = ".exe" if ES_WINDOWS else ""
+    simd, nucleo = RAIZ / "modelo" / "go" / "bin" / f"simd{ext}", RAIZ / "modelo" / "rust" / "bin" / f"lsim{ext}"
+    if not (simd.is_file() and nucleo.is_file()) or os.environ.get("LAPLACE_MOTOR_SIM", "").lower() == "python":
+        return None
+    return [str(simd)], {"LAPLACE_SIMD_ADDR": f"127.0.0.1:{SERVICIOS['simulador']['puerto']}", "LAPLACE_SIMD_NUCLEO": str(nucleo)}
 
 
 def _vivo(pid: int) -> bool:
@@ -158,6 +169,11 @@ def iniciar(lan: bool, con_agente: bool, avisar: bool = False, abrir: bool = Fal
     for nombre, datos in SERVICIOS.items():
         if nombre == "agente" and not con_agente:
             continue
+        simulador = _orden_simulador() if nombre == "simulador" else None
+        if nombre == "simulador":
+            if simulador is None:
+                continue  # sin los binarios no hay servicio: el simulador sigue con el núcleo directo o con Python
+            entorno["LAPLACE_SIMD_URL"] = f"http://127.0.0.1:{datos['puerto']}"  # el backend y el agente lo usan si responde
         pid = _leer_pid(nombre)
         if pid and _vivo(pid) and _responde(datos["puerto"]):
             print(f"{nombre}: ya está encendido (PID {pid}, puerto {datos['puerto']})")
@@ -168,8 +184,8 @@ def iniciar(lan: bool, con_agente: bool, avisar: bool = False, abrir: bool = Fal
             continue
         salida = open(LOGS / f"{nombre}.out.log", "ab")  # noqa: SIM115 — lo hereda el proceso hijo
         error = open(LOGS / f"{nombre}.err.log", "ab")  # noqa: SIM115
-        orden = [sys.executable, "-m", "uvicorn", datos["modulo"], "--host", host, "--port", str(datos["puerto"])]
-        opciones: dict = {"cwd": str(RAIZ), "env": entorno, "stdout": salida, "stderr": error, "stdin": subprocess.DEVNULL, "close_fds": True}
+        orden = simulador[0] if simulador else [sys.executable, "-m", "uvicorn", datos["modulo"], "--host", host, "--port", str(datos["puerto"])]
+        opciones: dict = {"cwd": str(RAIZ), "env": {**entorno, **(simulador[1] if simulador else {})}, "stdout": salida, "stderr": error, "stdin": subprocess.DEVNULL, "close_fds": True}
         if ES_WINDOWS:
             opciones["creationflags"] = 0x00000008 | 0x00000200 | 0x08000000  # DETACHED_PROCESS | NEW_PROCESS_GROUP | NO_WINDOW
         else:
@@ -217,6 +233,8 @@ def detener() -> int:
     """Apaga lo que ESTE control encendió (por su PID). Un proceso ajeno en el mismo puerto no se toca."""
     for nombre in SERVICIOS:
         pid = _leer_pid(nombre)
+        if nombre == "simulador" and not pid:
+            continue  # opcional: si nunca se encendió no hay nada que decir
         if pid and _vivo(pid):
             _matar(pid)
             print(f"{nombre}: detenido (PID {pid})")
@@ -232,6 +250,8 @@ def estado() -> int:
         pid = _leer_pid(nombre)
         vivo = bool(pid and _vivo(pid))
         responde = _responde(datos["puerto"])
+        if nombre == "simulador" and not (vivo or responde):
+            continue  # opcional: apagado no es un problema
         if vivo and responde:
             print(f"{nombre}: ENCENDIDO (PID {pid}, puerto {datos['puerto']})")
         elif responde:

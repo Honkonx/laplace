@@ -2,7 +2,7 @@
 
 > Generado por `backend/scripts/generar_referencia_docs.py` a partir del código. No se edita a mano: se regenera con ese script (una prueba avisa si quedó desactualizado).
 
-88 rutas en 13 grupos. «Acceso» sale de las dependencias reales de cada ruta; la API interactiva está en `/docs` con el backend encendido.
+113 rutas en 16 grupos. «Acceso» sale de las dependencias reales de cada ruta; la API interactiva está en `/docs` con el backend encendido.
 
 ## (sin grupo)
 
@@ -104,6 +104,33 @@
 | POST | `/api/v1/analisis` | público | Corre el motor completo (poisson + forma + h2h/odds/tabla si aplican + consenso) sobre un partido ya enriquecido con datos. |
 | GET | `/api/v1/analisis/{partido_id}` | público | Último análisis guardado para un partido — reemplaza el core de `check_job` de WF-A2 para el caso 'ya hay resultado' (la cola de jobs asíncrona en sí, con Telegram/… |
 
+## modelo-laplace
+
+| Método | Ruta | Acceso | Qué hace |
+|---|---|---|---|
+| GET | `/api/v1/ml/cadena` | admin (JWT con rol admin) | Verifica la cadena de sellos de los pronósticos guardados (MP-5): `ok` o la primera ruptura (solo administradores). |
+| GET | `/api/v1/ml/deriva` | admin (JWT con rol admin) | Alerta de deriva de lo que produce el modelo activo (MP-12): PSI de las probabilidades de los últimos 30 días frente a los 120 anteriores (solo administradores). |
+| GET | `/api/v1/ml/equipo/{liga}/{equipo}` | público | Memoria compartida (MP-4): lo que el modelo activo sabe de un equipo (rating, goles, forma, partidos, fiabilidad, fecha y origen). |
+| GET | `/api/v1/ml/errores` | admin (JWT con rol admin) | Memoria de errores (MP-1): dónde falla el modelo activo, con n por segmento (solo administradores). |
+| GET | `/api/v1/ml/health` | público | — |
+| GET | `/api/v1/ml/modelo` | público | Ficha del modelo activo (model card en datos): versión, variables, ligas, mercados validados y huellas de reproducibilidad. |
+| GET | `/api/v1/ml/models` | admin (JWT con rol admin) | — |
+| POST | `/api/v1/ml/predict` | público | — |
+| POST | `/api/v1/ml/predict/interno` | público | Igual que `/predict` pero para llamadores de confianza (laboratorio, scripts, IAs externas autorizadas): exige `x-laplace-ml-key`, acepta `partido_id` y deja rastro… |
+| GET | `/api/v1/ml/tools` | público | Definición de la herramienta en formato Anthropic (`input_schema`) y OpenAI (`function`): cualquier IA con llamadas a herramientas puede pedirle el pronóstico al… |
+
+## modelo-laplace-v2
+
+| Método | Ruta | Acceso | Qué hace |
+|---|---|---|---|
+| GET | `/api/v2/ml/capacidades` | público | — |
+| POST | `/api/v2/ml/eval/comparar` | público | Compara dos listas de pronósticos 1X2 sobre los MISMOS partidos: diferencia media de log loss, z, Diebold-Mariano-HLN e IC95 por bootstrap (positiva = `b` mejor). |
+| POST | `/api/v2/ml/sim/caminos` | público | — |
+| POST | `/api/v2/ml/sim/escenario` | público | — |
+| POST | `/api/v2/ml/sim/temporada` | público | — |
+| GET | `/api/v2/ml/tools` | público | Herramientas del modelo en formato Anthropic (`input_schema`) y OpenAI (`function`). |
+| POST | `/api/v2/ml/verificar` | público | «La IA propone, el modelo calcula, la IA critica»: recalcula la cifra que afirmó una IA y dice si coincide. |
+
 ## partidos
 
 | Método | Ruta | Acceso | Qué hace |
@@ -135,10 +162,23 @@
 | GET | `/api/v1/scheduler/status` | admin (JWT con rol admin) | Healthcheck real: ¿sigue vivo `AsyncIOScheduler` en este proceso?, y ¿cuándo fue la última corrida exitosa (automática o manual) de cada job? Un `/health` en 200 no… |
 | POST | `/api/v1/scheduler/top-picks` | admin (JWT con rol admin) | Reemplaza el cron 9AM Chile de WF-D. |
 
+## seguimientos
+
+| Método | Ruta | Acceso | Qué hace |
+|---|---|---|---|
+| DELETE | `/api/v1/agent/perfil` | sesión (JWT) | — |
+| PUT | `/api/v1/agent/perfil` | sesión (JWT) | — |
+| DELETE | `/api/v1/agent/seguimientos` | sesión (JWT) | — |
+| GET | `/api/v1/agent/seguimientos` | sesión (JWT) | — |
+| POST | `/api/v1/agent/seguimientos` | sesión (JWT) | — |
+| PUT | `/api/v1/agent/seguimientos/avisos` | sesión (JWT) | — |
+| POST | `/api/v1/agent/seguimientos/consentimiento` | sesión (JWT) | — |
+
 ## simulador
 
 | Método | Ruta | Acceso | Qué hace |
 |---|---|---|---|
+| GET | `/api/v1/simulador` | público | Qué ligas se pueden simular hoy y a partir de qué plan (público: es solo información; el cálculo exige plan). |
 | GET | `/api/v1/simulador/{liga_slug}` | público | Simula el resto de la temporada actual de `liga_slug` (uno de los slugs de `services/top_picks.py::LIGA_SLUG_POR_ID`, ej. |
 
 ## track-record

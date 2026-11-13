@@ -26,7 +26,6 @@ def _footer(canal: str, grupo_url: str) -> str:
     return f"\n{pie}" if pie else ""
 
 _CONF_EMOJI = {"ALTA": "🟢", "MEDIA": "🟡", "BAJA": "🔴"}
-_BANKROLL = {"ALTA": "3-5%", "MEDIA": "1-2%", "BAJA": "0.5%"}
 
 
 def _bloque_datos_desde_claude(texto_claude: str) -> str:
@@ -55,13 +54,26 @@ def _linea_estadistico(consenso: dict | None, poisson: dict) -> str:
             linea += f"   Detalle Poisson (un módulo más): {pl}% | Empate {pe}% | {pv}%\n"
         else:
             linea += f"📐 Estadístico (solo Poisson): {pl}% | Empate {pe}% | {pv}%\n"
-        over25 = poisson.get("over25_prob")
-        btts = poisson.get("btts_prob")
-        if over25 is not None:
-            linea += f"Over 2.5: {round(over25*100,1)}% | BTTS: {round((btts or 0)*100,1)}%\n"
     elif not texto_consenso:
         return "📐 Estadístico: Sin datos\n"
     return linea
+
+
+NOTA_GOLES = "(estimación propia: donde hay cuotas, la cuota es mejor guía)"  # medido (MP-11): el modelo gana a la tasa base pero no al mercado de más/menos 2,5
+
+
+def _goles_validados(modelo: dict) -> str:
+    """Ambos marcan, más de 2,5 y marcador SOLO si el modelo los validó fuera de muestra (si no vienen `None` y no se nombran)."""
+    partes = []
+    if modelo.get("btts_si") is not None:
+        partes.append(f"ambos marcan {round(modelo['btts_si'] * 100)}%")
+    if modelo.get("mas_2_5") is not None:
+        partes.append(f"más de 2,5 {round(modelo['mas_2_5'] * 100)}%")
+    if modelo.get("marcador_mas_probable"):
+        partes.append(f"marcador {modelo['marcador_mas_probable']}")
+    if modelo.get("btts_si") is None and modelo.get("mas_2_5") is None:
+        return " | " + " | ".join(partes) if partes else ""
+    return " | " + " | ".join(partes) + " " + NOTA_GOLES if partes else ""
 
 
 def _lineas_contexto_historico(resultado_motor: dict) -> str:
@@ -74,6 +86,14 @@ def _lineas_contexto_historico(resultado_motor: dict) -> str:
         he = round((historico.get("prob_empate") or 0) * 100, 1)
         hv = round((historico.get("prob_visitante") or 0) * 100, 1)
         extra += f"📚 Histórico DC: Local {hl}% | Empate {he}% | Visitante {hv}%\n"
+    modelo = resultado_motor.get("modelo_laplace") or {}
+    if modelo.get("p1x2"):
+        # Lectura APARTE del modelo propio: no entra al consenso ni cambia el pick; si respondió el respaldo Dixon-Coles se dice.
+        # Los goles esperados solo se muestran si el modelo los validó fuera de muestra (si no, `goles_esperados` viene vacío).
+        p, g = modelo["p1x2"], modelo.get("goles_esperados")
+        etiqueta = "Respaldo Dixon-Coles" if modelo.get("degradado") else "Modelo Laplace"
+        extra += (f"🧮 {etiqueta}: Local {round(p['local'] * 100, 1)}% | Empate {round(p['empate'] * 100, 1)}% | Visitante {round(p['visitante'] * 100, 1)}%"
+                  + (f" | goles {g['local']:.1f}-{g['visitante']:.1f}" if g else "") + _goles_validados(modelo) + "\n")
     evidencia = resultado_motor.get("nivel_evidencia") or {}
     if evidencia.get("codigo") and evidencia["codigo"] != "N0":
         extra += f"📊 Evidencia {evidencia['codigo']}: {evidencia.get('etiqueta', '')}" + chr(10)
@@ -87,6 +107,19 @@ def _lineas_contexto_historico(resultado_motor: dict) -> str:
     return extra
 
 
+_NOMBRE_MODULO = {"poisson": "Poisson", "forma": "forma", "h2h": "H2H", "odds": "cuotas", "tabla": "tabla", "historico": "histórico", "bsd_ml": "BSD"}
+
+
+def _linea_fuentes(resultado_motor: dict) -> str:
+    """Una línea con lo que SÍ aportó y lo que quedó sin dato: quien lee el pronóstico sabe cuánto respalda al pick (H-026: un análisis de liga menor usaba 1 de 7 y no lo decía)."""
+    usados = [_NOMBRE_MODULO.get(k, k) for k, m in (resultado_motor.get("modulos") or {}).items() if isinstance(m, dict) and m.get("ok", True)]
+    sin_dato = [_NOMBRE_MODULO.get(k, k) for k in (resultado_motor.get("modulos_skip") or {}) if k != "quality_gate"]
+    modelo = resultado_motor.get("modelo_laplace")
+    if modelo:
+        usados.append("modelo propio" if not modelo.get("degradado") else "referencia del modelo")
+    return f"🧩 Fuentes: {', '.join(usados) or 'ninguna'}" + (f" · sin dato: {', '.join(sin_dato)}" if sin_dato else "") + "\n"
+
+
 def formatear_mensaje_con_ia(resultado_motor: dict, combinado: dict, canal: str, grupo_url: str) -> str:
     texto_claude = combinado["texto_claude"]
     poisson = resultado_motor.get("modulos", {}).get("poisson", {})
@@ -96,10 +129,11 @@ def formatear_mensaje_con_ia(resultado_motor: dict, combinado: dict, canal: str,
     msg += f"\n{SEPARADOR}\n"
     msg += f"🎯 PICK: <b>{combinado['pick_unificado']}</b>\n"
     conf = combinado["confianza_final"]
-    msg += f"{_CONF_EMOJI.get(conf, '🟡')} Confianza: {conf} ({combinado['score_consolidado']}/100) | Bankroll: {_BANKROLL.get(conf, '1-2%')}\n"
+    msg += f"{_CONF_EMOJI.get(conf, '🟡')} Confianza: {conf} ({combinado['score_consolidado']}/100)\n"
     msg += f"{SEPARADOR}\n\n"
     msg += _linea_estadistico(resultado_motor.get("consenso"), poisson)
     msg += _lineas_contexto_historico(resultado_motor)
+    msg += _linea_fuentes(resultado_motor)
     if forma.get("ok") and forma.get("prob_local") is not None:
         fl = round(forma["prob_local"] * 100, 1)
         fv = round((forma.get("prob_visitante") or 0) * 100, 1)
@@ -152,26 +186,13 @@ def formatear_mensaje_free(resultado_motor: dict, canal: str, grupo_url: str) ->
     msg += f"\n📜 H2H:\n{h2h.get('score_para_claude', 'Sin historial directo disponible.') if h2h else 'Sin historial directo disponible.'}\n"
     msg += f"\n💰 {odds.get('score_para_claude', 'Sin odds disponibles') if odds else 'Sin odds disponibles — análisis estadístico puro.'}\n"
 
-    if poisson.get("ok"):
-        over25 = poisson.get("over25_prob")
-        if over25 is not None:
-            msg += f"🥅 Over 2.5: {round(over25*100,1)}% | BTTS: {round((poisson.get('btts_prob') or 0)*100,1)}%\n"
-        msg += f"🎯 Marcador esperado: {poisson.get('marcador_probable', 'N/A')}\n"
-        rango_local = poisson.get("rango_goles_local")
-        rango_visitante = poisson.get("rango_goles_visitante")
-        if rango_local and rango_visitante:
-            msg += f"⚽ Rango probable: {local} {rango_local} goles | {visitante} {rango_visitante} goles\n"
-        rango_total = poisson.get("rango_goles_total")
-        if rango_total:
-            msg += f"📈 Total de goles probable: {rango_total}\n"
-
     msg += f"\n{SEPARADOR}\n"
     consenso = resultado_motor.get("consenso", {})
     pick = consenso.get("pick_final") or poisson.get("pick", "Indeterminado")
     conf = consenso.get("confianza_final") or poisson.get("confianza", "BAJA")
     score = consenso.get("score_consenso") if consenso.get("score_consenso") is not None else poisson.get("confianza_score", 0)
     msg += f"🎯 PICK: <b>{pick}</b>\n"
-    msg += f"{_CONF_EMOJI.get(conf, '🔴')} Confianza: {conf} ({score}/100) | Bankroll: {_BANKROLL.get(conf, '0.5%')}\n"
+    msg += f"{_CONF_EMOJI.get(conf, '🔴')} Confianza: {conf} ({score}/100)\n"
     msg += f"{SEPARADOR}\n\n"
     msg += _linea_estadistico(consenso, poisson)
     msg += _lineas_contexto_historico(resultado_motor)

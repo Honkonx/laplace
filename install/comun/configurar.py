@@ -178,7 +178,7 @@ def pintar_detalle(p: Pantalla, c: cx.Conexion, r: cx.Resultado) -> None:
     p.linea(f"{p.c('acc', f'{c.numero} · {c.nombre.upper()}')}   {p.glifo(r.estado)} {r.detalle}")
     p.linea(p.c("dim", "─" * 62))
     filas = [("Para qué sirve", c.sirve), ("Plan gratis", c.plan), ("Conseguir clave", c.enlace), ("Se guarda como", f"{c.variable} (en .env; nunca se vuelve a mostrar)"),
-             ("Se prueba contra", c.host + (f"  (esta API cobra cada llamada: se prueba solo si lo pides)" if c.prueba.cobra_por_llamada else "")
+             ("Se prueba contra", c.host + ("  (esta API cobra cada llamada: se prueba solo si lo pides)" if c.prueba.cobra_por_llamada else "")
               + (f"  (la prueba cuesta {c.prueba.cuesta})" if c.prueba.cuesta else ""))]
     if c.grupo == "partidos":
         filas.append(("Cambiar proveedor", "el calendario usa el primero con clave y datos; para cambiar, pon la clave del otro y borra esta"))

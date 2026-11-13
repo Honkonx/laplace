@@ -17,11 +17,11 @@ _DEFINICION = re.compile(
     r"\b(?:que (?:significa|significan|es|son|quiere decir|quieren decir)|significado de|define|definicion de|definime|"
     r"explica(?:me)?(?: que (?:es|son|significa))?|como (?:se )?(?:lee|leo|interpreto|interpreta|interpretar|funciona|calculan?)|para que sirve)\b")
 _LIGA = re.compile(
-    r"\b(?:tasas? base|goles por partido|promedio de goles|cuantos goles|estadisticas de la|perfil de la|como es la|como viene la|"
+    r"\b(?:tasas? base|tasa de (?:empates?|goles|victorias?)|porcentaje de empates|cuantos empates|goles por partido|promedio de goles|cuantos goles|estadisticas de la|perfil de la|como es la|como viene la|"
     r"datos de la|cuanto empata|tan goleadora|tan empatadora)\b")
 _COBERTURA = re.compile(r"\b(?:cubres|cubren|cobertura|tienes datos|tienen datos|hay datos)\b")
 _EQUIPO = re.compile(
-    r"\b(?:como (?:viene|vienen|anda|andan|va|le va|juega|rinde|esta)|perfil (?:de|del)|forma (?:de|del|actual de)|racha (?:de|del)|"
+    r"\b(?:(?:como|que tal) (?:viene|vienen|llega|llegan|pinta|pintan|anda|andan|va|le va|juega|rinde|esta)|perfil (?:de|del)|forma (?:de|del|actual de)|racha (?:de|del)|"
     r"ultimos partidos (?:de|del)|estadisticas (?:de|del)|rendimiento (?:de|del)|datos (?:de|del)|info(?:rmacion)? (?:de|del|sobre)|"
     r"cuentame (?:de|sobre)|hablame (?:de|sobre))\b")
 _COLA = re.compile(r"\b(?:hoy|ahora|actualmente|ultimamente|esta temporada|este ano|por favor|gracias)\b")
@@ -42,7 +42,7 @@ def _colas_equipo(texto: str) -> list[str]:
 
 def consulta_conocimiento(texto: str, *, hay_partido: bool = False) -> tuple[str, dict] | None:
     """(herramienta, argumentos) si el mensaje pide glosario, liga o equipo; None si no."""
-    if not texto.strip():
+    if not texto.strip() or re.search(r"\b(?:que|cuales) ligas (?:hay|tienes|manejas)\b", texto):  # eso es el listado de ligas, no el glosario
         return None
     mejor = ref.fragmentos_referencia(texto, 1)
     puntos = mejor[0]["puntos"] if mejor else 0.0

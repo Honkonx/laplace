@@ -17,6 +17,7 @@ from backend.api.db.session import get_db
 from backend.api.models.partidos import PartidoDia
 from backend.api.models.predicciones import HistorialPrediccionWeb, PrediccionVarianteAgente
 from backend.api.core.auth_deps import obtener_usuario_actual
+from backend.api.services import ligas_ident
 from backend.api.services.gateway import obtener_fixtures_cascada
 from backend.api.services.top_picks import LIGAS_OK
 from backend.api.db import recomendaciones_repo
@@ -88,7 +89,7 @@ def _fixture(row: PartidoDia) -> dict:
         "kickoff": row.kick_off_utc or row.hora_chile,
         "status": row.status,
         "score": {"home": row.goles_local, "away": row.goles_visitante},
-        "league": {"id": row.liga_slug or "otras", "name": row.liga_nombre or row.liga_slug or "Otras ligas", "logo": row.liga_logo},
+        "league": {"id": row.liga_slug or "otras", "name": ligas_ident.nombre_visible(row.liga_nombre or row.liga_slug or "Otras ligas", row.liga_pais), "country": row.liga_pais, "logo": row.liga_logo},
         "home": {"name": row.local or "Local", "logo": row.logo_local},
         "away": {"name": row.visitante or "Visitante", "logo": row.logo_visitante},
     }
@@ -168,9 +169,9 @@ async def fixtures(
         effective_scope = "fallback"
     rows = rows_candidatos[offset:offset + limit]
     all_leagues = (
-        db.query(PartidoDia.liga_slug, PartidoDia.liga_nombre, PartidoDia.liga_logo, func.count(PartidoDia.match_id))
+        db.query(PartidoDia.liga_slug, PartidoDia.liga_nombre, PartidoDia.liga_logo, func.count(PartidoDia.match_id), PartidoDia.liga_pais)
         .filter(PartidoDia.fecha == date_db, PartidoDia.cache_invalidado == 0)
-        .group_by(PartidoDia.liga_slug, PartidoDia.liga_nombre, PartidoDia.liga_logo)
+        .group_by(PartidoDia.liga_slug, PartidoDia.liga_nombre, PartidoDia.liga_logo, PartidoDia.liga_pais)
         .order_by(PartidoDia.liga_nombre.asc())
         .all()
     )
@@ -180,5 +181,5 @@ async def fixtures(
         "total": total,
         "next_offset": offset + len(rows) if offset + len(rows) < total else None,
         "fixtures": [_fixture(row) for row in rows],
-        "leagues": [{"id": slug or "otras", "name": name or slug or "Otras ligas", "logo": logo, "count": count, "priority": _is_priority(name)} for slug, name, logo, count in all_leagues],
+        "leagues": [{"id": slug or "otras", "name": ligas_ident.nombre_visible(name or slug or "Otras ligas", pais), "country": pais, "logo": logo, "count": count, "priority": _is_priority(name)} for slug, name, logo, count, pais in all_leagues],
     }

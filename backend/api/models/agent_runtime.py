@@ -190,3 +190,12 @@ class AgentPolicyVersion(Base):
     created_en: Mapped[str] = mapped_column(String(32), nullable=False)
     activated_en: Mapped[str | None] = mapped_column(String(32), nullable=True)
     deactivated_en: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
+
+class AgentUsoDiario(Base):
+    """Contador diario de uso por usuario (IA y predicciones) que sobrevive a los reinicios (MA-51). Guarda solo cuántas veces, nunca contenido."""
+
+    __tablename__ = "agent_uso_diario"
+    clave: Mapped[str] = mapped_column(String(255), primary_key=True)  # "<usuario>" para IA, "<usuario>:pred" para predicciones
+    dia: Mapped[str] = mapped_column(String(10), primary_key=True)
+    usos: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

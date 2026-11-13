@@ -73,7 +73,8 @@ def test_prompt_da_rol_claro_de_analista_experto():
     la tarea (datos provistos, independencia del Poisson) — confirma que sigue ahí."""
     prompt = construir_prompt_analisis(_partido_base())
     assert "analista deportivo profesional" in prompt
-    assert "modelo estadístico Poisson" in prompt
+    assert "consenso estadístico del sistema" in prompt
+    assert "Poisson independiente" not in prompt  # MB-01: el Poisson pesa 0 en el consenso desde 2026-10-07
 
 
 def test_prompt_pide_responder_solo_el_formato_exacto():

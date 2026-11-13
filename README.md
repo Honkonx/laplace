@@ -15,7 +15,7 @@
 
 <p align="center"><strong>⚽ Pronósticos de fútbol que te dicen de dónde sale cada número — con bot de Telegram, agente de chat, web, PWA y app Android.</strong></p>
 
-Laplace junta en un solo proyecto un motor estadístico (modelo histórico Dixon-Coles + cuotas del mercado sin margen), un bot de Telegram, un agente de chat, una web, una PWA y una app Android. La idea es sencilla: que un pronóstico venga con su evidencia, y que si faltan datos el sistema lo diga en vez de inventarse una cifra bonita.
+Laplace junta en un solo proyecto un motor estadístico (un modelo propio de ratings Elo y tasas de gol con regresión logística jerárquica, el modelo histórico Dixon-Coles y las cuotas del mercado sin margen, más un simulador de temporadas), un bot de Telegram, un agente de chat, una web, una PWA y una app Android. La idea es sencilla: que un pronóstico venga con su evidencia, y que si faltan datos el sistema lo diga en vez de inventarse una cifra bonita.
 
 ## 🚫🎰 Aquí se pronostica, no se apuesta
 
@@ -37,7 +37,7 @@ El código de Laplace lo escribió **[Claude Code](https://claude.com/claude-cod
 
 🤖 **Bot de Telegram.** `/juegos` para elegir día, liga y partido, `/hoy` con lo que sí tiene pronóstico, `/top` con los Top Picks del día y `/stats` con el rendimiento real del bot ([comandos](docs/telegram-y-agente.md)).
 
-🧠 **IA que explica, no que inventa probabilidades.** Ollama Cloud primero, con respaldo en Groq, Gemini, OpenRouter y Claude. La IA redacta y contrasta; las probabilidades salen del motor.
+🧠 **IA que explica, no que inventa probabilidades.** Gemini primero para los análisis y Ollama Cloud primero para el agente, con respaldo en Groq, OpenRouter y Claude (el orden se configura). La IA redacta y contrasta; las probabilidades salen del motor.
 
 💬 **Un agente de chat.** Consulta las herramientas deportivas del backend, recuerda tu contexto y deja trazadas sus acciones. Funciona por la web, la PWA y su propio bot de Telegram.
 
@@ -48,6 +48,19 @@ El código de Laplace lo escribió **[Claude Code](https://claude.com/claude-cod
 🔑 **Configurar tus APIs sin sufrir.** `configurar` detecta qué claves tienes, prueba cada API con una llamada gratuita (✓ / ✗ / ⚠), te da el enlace para conseguir cada clave y la guarda por ti, sin mostrarla. Lo puedes abrir cuando quieras para cambiar claves o proveedores; el panel web trae la misma pantalla.
 
 🔐 **Tus secretos son tuyos.** Las claves viven en un `.env` que nunca se sube a git ni se muestra en pantalla; el instalador las pide sin eco.
+
+## El modelo de Laplace 🧠
+
+Laplace tiene un **modelo propio de pronóstico de fútbol** que se puede usar solo, sin Telegram ni la web:
+
+- **Qué es.** Un modelo estadístico (ratings Elo y tasas de gol con memoria, con una regresión logística jerárquica por liga). **No es un modelo de lenguaje:** calcula probabilidades, no las inventa. Se combina con las cuotas del mercado sin margen cuando existen y con el modelo histórico Dixon-Coles.
+- **Entrada.** `local` y `visitante` (obligatorios) y, opcionales, `liga`, `pais` (distingue la Serie B de Brasil de la de Italia), `liga_id` y `cuotas`.
+- **Salida.** Probabilidades 1X2 que suman 1, goles esperados, marcadores, ambos marcan y más o menos goles (solo los mercados que superaron a la tasa base fuera de muestra), una confianza y la fuente del pronóstico (`modelo_laplace`, `dixon_coles_historico` o `referencia_de_liga`). Si no hay base para opinar, dice por qué.
+- **Cómo usarlo.** Por HTTP (`POST /api/v1/ml/predict`), por línea de comandos (`python backend/scripts/modelo_laplace.py predecir --entrada partidos.csv --salida pronosticos.csv`) o como biblioteca (`servicio.pronosticar_partido`). El simulador de temporadas (campeón, copa, descenso) usa un núcleo en Rust con respaldo en Go y Python.
+- **Qué tan bueno es, sin adornos.** En 44.289 partidos de prueba de 49 ligas mejora claramente a la tasa base (log loss 1,0214 frente a 1,0712), empata con el Dixon-Coles y **no supera al mercado** donde hay cuotas: su valor es la independencia, la cobertura donde no hay cuotas y la calibración. Cada cambio se mide contra la tasa base y el mercado antes de usarse.
+- **Qué no trae.** Los datos y los modelos entrenados no están en este repositorio (ver más abajo).
+
+Detalle: [modelo Laplace](docs/backend/MODELO_LAPLACE.md) y [qué es, qué tiene y qué le falta](docs/backend/modelos/INDEX.md). El modelo tiene sus propios [términos de uso](docs/terminos-del-modelo.md) (solo regulan el modelo, no el código).
 
 ## Empezar rápido ⚡
 
@@ -79,7 +92,7 @@ Para que no te sorprenda: **no incluye datos históricos ni modelos entrenados**
 
 ## Pruebas 🧪
 
-Más de mil pruebas automáticas: `pytest` para `backend/tests` y `backend/agents/tests`, y `pnpm test` en `frontend/` y `pwa/`. Para Node se usa **pnpm**, no npm.
+Más de cuatro mil pruebas automáticas: `pytest` para `backend/tests` y `backend/agents/tests`, y `pnpm test` en `frontend/` y `pwa/`. Para Node se usa **pnpm**, no npm.
 
 ## Documentación 📚
 

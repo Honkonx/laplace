@@ -12,17 +12,27 @@ import re
 
 from backend.api.services.ai_prompts import sanear_texto
 
+PROMPT_VERSION_CANAL = "canal.v2"
+
+
+def _texto_consenso(c: dict) -> str:
+    """Pick y probabilidad del consenso del sistema (cuotas + modelo histórico): el contexto que antes era «Poisson pick» y «Forma pick», módulos que pesan 0 o casi 0."""
+    consenso = (c.get("resultado_motor") or {}).get("consenso") or {}
+    pick = consenso.get("pick_final")
+    if not pick or pick == "Sin pronóstico":
+        return "N/D"
+    prob = (consenso.get("prob_ponderada") or {}).get({"Local": "local", "Empate": "empate", "Visitante": "visitante"}.get(pick, ""), None)
+    return f"{sanear_texto(pick)}" + (f" ({round(prob * 100)}%)" if isinstance(prob, (int, float)) else "")
+
 
 def _bloque_partido(numero: int, c: dict | None) -> str:
     if c is None:
         return (
             f"PARTIDO {numero}:\nEquipos: Sin partido\nLiga:  | Hora Chile: \n"
             "Stats local: Sin datos\nStats visitante: Sin datos\nH2H: Sin datos\n"
-            "Poisson pick: N/A (score 0)\nForma pick: N/A (score 0)\nOdds: Sin odds\n"
+            "Consenso del sistema: N/A\nOdds: Sin odds\n"
             "Predicción externa: N/A"
         )
-    est = c.get("estadistico") or {}
-    frm = c.get("estadistico_form") or {}
     local = sanear_texto(c.get("local"))
     visitante = sanear_texto(c.get("visitante"))
     odds_txt = "Sin odds"
@@ -38,8 +48,7 @@ def _bloque_partido(numero: int, c: dict | None) -> str:
         f"Stats local: {sanear_texto(c.get('stats_local_str', 'Sin datos'), 300)}\n"
         f"Stats visitante: {sanear_texto(c.get('stats_visit_str', 'Sin datos'), 300)}\n"
         f"H2H: {sanear_texto(c.get('h2h_resumen', 'Sin historial directo.'), 300)}\n"
-        f"Poisson pick: {sanear_texto(est.get('pick', 'N/D'))} (score {sanear_texto(est.get('confianza_score', 0), 10)})\n"
-        f"Forma pick: {sanear_texto(frm.get('pick', 'N/D'))} (score {sanear_texto(frm.get('confianza_score', 0), 10)})\n"
+        f"Consenso del sistema: {_texto_consenso(c)}\n"
         f"Odds: {odds_txt}\n"
         f"Predicción externa: {sanear_texto(c.get('pick_externo')) or 'No disponible'}"
     )
@@ -54,8 +63,7 @@ def construir_prompt_canal(top3: list[dict]) -> str:
     return f"""Eres un analista deportivo experto. Se te dan 3 partidos con datos estadísticos de múltiples motores.
 
 CONTEXTO DE DATOS:
-- Poisson: modelo probabilístico con goles promedio reales de la temporada
-- Forma: modelo basado en victorias recientes (últimos 5 partidos)
+- Consenso del sistema: combinación medida de cuotas del mercado y modelo histórico (es la referencia, no la copies)
 - H2H: historial directo disponible cuando se indica
 - Externo: predicción de api-football cuando disponible
 
@@ -63,28 +71,24 @@ REGLAS ESTRICTAS:
 1. SIN Markdown, asteriscos, hashtags
 2. PICK = SOLO nombre exacto del equipo local, visitante, o la palabra Empate
 3. RAZÓN = 1 oración, máximo 15 palabras, con dato concreto
-4. CONFIANZA = numero entero 0-100 reflejando tu certeza real considerando todos los datos
-5. Si los modelos coinciden → mayor confianza. Si divergen → menor confianza
-6. SIEMPRE da un pick aunque los datos sean escasos — usa lo disponible
-7. Prioriza odds cuando estén disponibles (reflejan el mercado real)
-8. NO contradigas las cifras entregadas ni inventes probabilidades, porcentajes ni value bets propios:
+4. NO des una confianza ni un porcentaje: la confianza la calcula el sistema con datos medidos
+5. Si los datos son insuficientes para un partido, responde PICK: Sin datos (no inventes un pick)
+6. Prioriza odds cuando estén disponibles (reflejan el mercado real)
+7. NO contradigas las cifras entregadas ni inventes probabilidades, porcentajes ni value bets propios:
    tu rol es explicar y contrastar, las cifras las producen modelos medidos
 
 {bloques_partidos}
 
 FORMATO — exactamente 3 bloques separados por ---:
 
-PICK: [nombre equipo o Empate]
+PICK: [nombre equipo, Empate o Sin datos]
 RAZÓN: [1 oración, máximo 15 palabras, dato concreto]
-CONFIANZA: [numero 0-100]
 ---
-PICK: [nombre equipo o Empate]
+PICK: [nombre equipo, Empate o Sin datos]
 RAZÓN: [1 oración, máximo 15 palabras, dato concreto]
-CONFIANZA: [numero 0-100]
 ---
-PICK: [nombre equipo o Empate]
-RAZÓN: [1 oración, máximo 15 palabras, dato concreto]
-CONFIANZA: [numero 0-100]"""
+PICK: [nombre equipo, Empate o Sin datos]
+RAZÓN: [1 oración, máximo 15 palabras, dato concreto]"""
 
 
 def parsear_bloque(bloque: str) -> dict:

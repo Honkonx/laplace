@@ -47,6 +47,7 @@ def guardar_fixture_cache(db: Session, match_id: str, fecha: str, apifootball_fi
                                league_id=league_id, season=season, team_home_id=team_home_id,
                                team_away_id=team_away_id, creado_en=ahora))
     else:
+        fila.fecha = fecha  # un partido reprogramado cambia de fecha: antes la fila conservaba la vieja
         fila.apifootball_fixture_id = apifootball_fixture_id
         fila.league_id = league_id
         fila.season = season
