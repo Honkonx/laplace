@@ -10,11 +10,11 @@ Los criterios vienen de dos investigaciones (anexos G y H en `un documento archi
 | [x] | Variables sin fuga del futuro | Estado partido a partido; el apilado usa cuotas de **apertura** (`ap_prom`) |
 | [x] | Salida como distribución completa que suma 1 | `p1x2`, goles, marcadores (`ml/laplace/pronostico.py`) |
 | [x] | Reglas de puntuación estrictamente propias | `ml/metricas.py`: RPS, log loss y Brier |
-| [x] | Calibración con curva de fiabilidad y ECE | `entrenamiento.ece`; ECE 0,0083 en g2; isotónica en `services/calibracion.py` |
+| [x] | Calibración con curva de fiabilidad y ECE | `entrenamiento.ece`; ECE 0,0083 en g2 y 0,00925 en la medición del 2026-11-13 (`medicion_calibracion_por_liga.json`, otro corte); isotónica en `services/calibracion.py` |
 | [~] | Incertidumbre comunicada y abstención | Intervalos por covarianza y «sin pronóstico» con motivo; falta el rango conforme en el producto (`MD-7`) |
 | [x] | Validación temporal walk-forward | Arnés y prueba desde 2023-07-01 que el ajuste no ve |
 | [x] | Comparación con tasa base y mercado en los mismos partidos | `evaluar_modelo_laplace.py`, `comparar_versiones_modelo.py` (Diebold-Mariano, bootstrap en bloques) |
-| [ ] | Monitorización de deriva con alerta | Existe el modo sombra y la regla 50/200, pero nada avisa si el RPS en vivo se aleja del histórico (`MD-13`) |
+| [~] | Monitorización de deriva con alerta | Hecho: PSI de las probabilidades de 30 días frente a 120 (`ml/laplace/deriva.py`, llamado en `ml/laplace/jobs.py:56`, `GET /api/v1/ml/deriva`). Falta: alerta por RPS en vivo frente al histórico (`MD-13`) |
 | [x] | Tarjeta del modelo y reproducibilidad | `ml/laplace/tarjeta.py`, huella SHA-256, semilla, registro de versiones |
 
 ## B. Bot: la lógica del backend que arma un pronóstico
@@ -46,7 +46,7 @@ Criterio propio [I], tomado de lo que el código ya hace y de buenas prácticas 
 | [x] | Llamada a herramientas con esquema estricto y validación nuestra | `ai_salida.py`, definiciones de herramienta, validación de entradas |
 | [x] | Fundamentación y capacidad de decir «no sé» | La IA solo recibe cifras del motor, `depurar_cifras` descarta las que no están en el prompt, y sin pronóstico propio la IA ni corre |
 | [~] | Evaluación propia contra una línea base | `medir_aporte_ia.py`; falta repetirla en cada cambio |
-| [ ] | Red teaming y barandillas de entrada y salida | No hay una prueba adversarial formal |
+| [~] | Red teaming y barandillas de entrada y salida | Prueba adversarial en `backend/tests/test_agent_inyeccion.py` (32 ataques) y 8 ataques por proveedor en `evaluacion_proveedores_ia.json`; falta repetirla en cada cambio de proveedor |
 | [~] | Plan de retiro o cambio de proveedor | La cascada de 5 proveedores lo permite; sin un procedimiento escrito |
 | [x] | Riesgos y límites publicados | El aviso de estimación en cada respuesta y la regla de que la IA no da probabilidades |
 
@@ -58,7 +58,7 @@ Criterio propio [I], tomado de lo que el código ya hace y de buenas prácticas 
 | [x] | Autorización en el sistema, no en el modelo | El plan se lee de la base en cada llamada; comandos de administrador con `solo_admin` |
 | [x] | Un humano aprueba lo de alto impacto | `AgentApproval`, `/decidir`, expiración de aprobaciones |
 | [~] | No combinar datos privados, contenido no confiable y salida al exterior | Sin revisión específica de esa combinación |
-| [ ] | Defensa contra la inyección de instrucciones | **No la encontré**: el «saneo» que aparece solo limpia mensajes de error (`ai_metrics.sanitizar_error`) |
+| [x] | Defensa contra la inyección de instrucciones | `services/agent_saneo.py` y bloques delimitados como no confiables en `agent_runtime_prompts.py`; probada con 32 ataques (`test_agent_inyeccion.py`). La búsqueda anterior no la encontró; corregido el 2026-11-14 |
 | [x] | Límites de uso | `agent_guard`: mensajes por minuto por chat, cuota de IA por plan |
 | [x] | Registro auditable | Auditoría de herramientas (se conserva incluso en modo incógnito) |
 | [x] | Pruebas de regresión aisladas | `qa_agent_*`, conjunto dorado de 94 frases, 260 casos del bot del agente |
@@ -73,7 +73,7 @@ Criterio propio [I], tomado de lo que el código ya hace y de buenas prácticas 
 | [ ] | Umbral derivado de la matriz de costes de error | No hay costes: no se apuesta; los umbrales salen de la calibración |
 | [x] | Conjunto etiquetado y separado por tiempo | Walk-forward con prueba intocable |
 | [~] | Precisión, F1 y curva riesgo-cobertura | RPS, log loss y ECE sí; **falta la curva riesgo-cobertura** de la abstención |
-| [~] | Robustez a ruido y casos fuera de distribución | Fuentes caídas probadas; sin pruebas de entradas fuera de distribución |
+| [~] | Robustez a ruido y casos fuera de distribución | Fuentes caídas probadas; pruebas de propiedades de la entrada en `backend/tests/test_ml_robustez.py` (19 pruebas contadas, cada una puede parametrizar más casos); entradas fuera de distribución sin medir |
 | [x] | Latencia y coste con tope | 0,6 ms por pronóstico; cuota de IA por plan |
 | [x] | Versionado de modelo, prompt y umbrales | Familia versionada y `PROMPT_VERSION` |
 | [~] | Registro de cada decisión y revisión humana de lo dudoso | Se registra todo; la revisión humana solo existe para acciones del agente |

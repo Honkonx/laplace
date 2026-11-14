@@ -62,15 +62,24 @@ def _linea_estadistico(consenso: dict | None, poisson: dict) -> str:
 NOTA_GOLES = "(estimación propia: donde hay cuotas, la cuota es mejor guía)"  # medido (MP-11): el modelo gana a la tasa base pero no al mercado de más/menos 2,5
 
 
+def _marca_por_equipo(modelo: dict) -> str:
+    """«marca local 82 % · visitante 59 %»: probabilidad de que cada equipo anote al menos un gol (el modelo la mide mejor que la media de la liga)."""
+    g = modelo.get("goles_por_equipo")
+    return f"marca local {round(g['local']['marca'] * 100)}% · visitante {round(g['visitante']['marca'] * 100)}%" if g else ""
+
+
 def _goles_validados(modelo: dict) -> str:
     """Ambos marcan, más de 2,5 y marcador SOLO si el modelo los validó fuera de muestra (si no vienen `None` y no se nombran)."""
     partes = []
+    if _marca_por_equipo(modelo):
+        partes.append(_marca_por_equipo(modelo))
     if modelo.get("btts_si") is not None:
         partes.append(f"ambos marcan {round(modelo['btts_si'] * 100)}%")
     if modelo.get("mas_2_5") is not None:
         partes.append(f"más de 2,5 {round(modelo['mas_2_5'] * 100)}%")
     if modelo.get("marcador_mas_probable"):
-        partes.append(f"marcador {modelo['marcador_mas_probable']}")
+        acierto = (modelo.get("goles_por_equipo") or {}).get("acierto_historico_marcador")
+        partes.append(f"marcador más probable {modelo['marcador_mas_probable']}" + (f" (acierta ~{round(acierto * 100)}% de las veces)" if acierto else ""))
     if modelo.get("btts_si") is None and modelo.get("mas_2_5") is None:
         return " | " + " | ".join(partes) if partes else ""
     return " | " + " | ".join(partes) + " " + NOTA_GOLES if partes else ""

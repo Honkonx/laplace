@@ -35,6 +35,7 @@ from zoneinfo import ZoneInfo
 import httpx
 from sqlalchemy.orm import Session
 
+from backend.api.core.horario import inicio_y_hora_chile
 from backend.api.core.tiempo import utc_ahora
 from backend.api.core.config import settings
 from backend.api.db import partidos_repo
@@ -147,13 +148,12 @@ def parsear_stages(stages: list[dict], fecha_bd: str) -> tuple[list[dict], list[
             if partidos_repo.rango_estado(estado) == 3 and (gl is None or gv is None):
                 descartes["terminado_sin_marcador"] += 1
                 continue
-            esd = str(ev.get("Esd", "") or "")
+            inicio_utc, hora = inicio_y_hora_chile(ev.get("Esd"), ev.get("kick_off_utc"))   # `Esd` de LiveScore viene en UTC+7, no en hora de Chile
             pais = str(stage.get("Cnm") or "").strip()
             partidos.append({
                 "match_id": match_id, "liga_slug": gateway.slug_de_liga(liga_nombre, pais), "liga_nombre": liga_nombre, "liga_pais": pais or None,
                 "liga_logo": liga_logo, "local": local, "visitante": visitante,
-                "hora_chile": f"{esd[8:10]}:{esd[10:12]}" if len(esd) >= 12 else "",
-                "kick_off_utc": ev.get("kick_off_utc", "") or "",
+                "hora_chile": hora, "kick_off_utc": inicio_utc,
                 "logo_local": gateway._build_img(((ev.get("T1") or [{}])[0]).get("Img", "")),
                 "logo_visitante": gateway._build_img(((ev.get("T2") or [{}])[0]).get("Img", "")),
                 "status": estado,

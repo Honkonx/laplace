@@ -17,6 +17,7 @@ import asyncio
 import logging
 import sys
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -118,6 +119,68 @@ async def _job_resultados() -> None:
                 scheduler_repo.registrar_run(db, JOB_RESULTADOS, ok=False)
                 raise
             scheduler_repo.registrar_run(db, JOB_RESULTADOS, ok=True)
+
+
+async def _job_verificar_partidos() -> None:
+    """Verifica solo cada pronóstico emitido: a inicio + 140 min del partido busca el resultado, lo guarda y califica todo lo enlazado (AU-2/AU-3).
+
+    Corre cada 10 min y al arrancar (recupera lo que venció mientras el backend estaba apagado). Rescata antes a la cola lo que quedó sin resultado
+    de antes de que existiera. Una fuente caída solo cuenta como intento; no detiene a las demás."""
+    from backend.api.db import scheduler_repo
+    from backend.api.routers.scheduler import JOB_VERIFICACION
+    from backend.api.services import verificacion
+
+    async with httpx.AsyncClient() as client:
+        with SessionLocal() as db:
+            try:
+                verificacion.sembrar_pendientes(db)
+                db.commit()
+                resumen = await verificacion.procesar_vencidas(db, client)
+            except Exception:
+                log.exception("Fallo _job_verificar_partidos")
+                scheduler_repo.registrar_run(db, JOB_VERIFICACION, ok=False)
+                raise
+            scheduler_repo.registrar_run(db, JOB_VERIFICACION, ok=True, detalle=f"revisadas={resumen['revisadas']} finales={resumen['final']} atrasadas={resumen['atrasadas']}")
+            await _avisar_verificaciones_atrasadas(db, client, resumen["atrasadas"])
+
+
+UMBRAL_ATRASADAS_AVISO = 5
+
+
+async def _avisar_verificaciones_atrasadas(db, client, atrasadas: int) -> None:
+    """Avisa al administrador UNA vez al día si hay varias verificaciones vencidas hace más de 90 min (el verificador no avanza: fuente caída o cuota agotada)."""
+    from backend.api.db.cache import guardar_stats_cache, leer_stats_cache
+    from backend.api.services.telegram_client import enviar_mensaje
+
+    if atrasadas < UMBRAL_ATRASADAS_AVISO or not settings.SPORTS_ADMIN_ID:
+        return
+    clave = f"verificacion:aviso:{datetime.now(TZ_CHILE).strftime('%Y-%m-%d')}"
+    if leer_stats_cache(db, clave) is not None:
+        return
+    guardar_stats_cache(db, clave, "aviso", {"atrasadas": atrasadas}, ttl_horas_override=30)
+    await enviar_mensaje(client, settings.SPORTS_ADMIN_ID, f"⚠️ {atrasadas} verificaciones llevan más de 90 min vencidas: revisa las fuentes de resultados y la cuota (GET /health).")
+
+
+async def _job_informe_semanal() -> None:
+    """Domingo por la noche: el informe de aciertos de la semana (solo lo verificado solo), guardado y enviado al administrador (AU-6)."""
+    from backend.api.db import scheduler_repo
+    from backend.api.db.cache import guardar_stats_cache
+    from backend.api.routers.scheduler import JOB_INFORME_SEMANAL
+    from backend.api.services import informe_semanal
+    from backend.api.services.telegram_client import enviar_mensaje
+
+    async with httpx.AsyncClient() as client:
+        with SessionLocal() as db:
+            try:
+                informe = informe_semanal.generar(db, dias=7)
+                guardar_stats_cache(db, f"informe_semanal:{informe['ventana']['hasta'][:10]}", "informe_semanal", informe, ttl_horas_override=24 * 365)
+                if settings.SPORTS_ADMIN_ID:
+                    await enviar_mensaje(client, settings.SPORTS_ADMIN_ID, informe_semanal.texto(informe))
+            except Exception:
+                log.exception("Fallo _job_informe_semanal")
+                scheduler_repo.registrar_run(db, JOB_INFORME_SEMANAL, ok=False)
+                raise
+            scheduler_repo.registrar_run(db, JOB_INFORME_SEMANAL, ok=True, detalle=f"cerrados={informe['embudo']['cerrados']}")
 
 
 def _alertar_creditos_odds(db) -> None:
@@ -497,7 +560,8 @@ async def lifespan(app: FastAPI):
     # APScheduler reemplaza los cron triggers de n8n (WF-D 9AM Chile, WF-E cada 2h + 07:00) —
     # antes solo invocables a mano vía routers/scheduler.py; ahora corren automáticos, igual
     # que en producción hoy con n8n.
-    ap_scheduler = AsyncIOScheduler(timezone=TZ_CHILE)
+    # Tolerancia a corridas perdidas (reinicio, suspensión de la máquina): una hora de gracia y, si se acumularon varias, una sola (`coalesce`); nunca dos a la vez.
+    ap_scheduler = AsyncIOScheduler(timezone=TZ_CHILE, job_defaults={"misfire_grace_time": 3600, "coalesce": True, "max_instances": 1})
     ap_scheduler.add_job(_job_verificar_fuentes, CronTrigger(hour=7, minute=30, timezone=TZ_CHILE), id="fuentes_deportivas_health")
     ap_scheduler.add_job(_job_actualizar_resultados_actuales, CronTrigger(hour=6, minute=15, timezone=TZ_CHILE), id="resultados_actuales")
     ap_scheduler.add_job(_job_estado_vivo, CronTrigger(hour="6,13", minute=40, timezone=TZ_CHILE), id="estado_vivo_modelo")
@@ -513,6 +577,10 @@ async def lifespan(app: FastAPI):
     ap_scheduler.add_job(_job_top_picks, CronTrigger(hour=9, minute=0, timezone=TZ_CHILE), id="wfd_top_picks")
     ap_scheduler.add_job(_job_resultados, CronTrigger(hour="*/2", minute=0, timezone=TZ_CHILE), id="wfe_resultados_2h")
     ap_scheduler.add_job(_job_resultados, CronTrigger(hour=7, minute=0, timezone=TZ_CHILE), id="wfe_resultados_7am")
+    # Verificación por hora de partido (AU-2): cada 10 min, y 45 s después de arrancar para recuperar lo vencido con el backend apagado.
+    ap_scheduler.add_job(_job_verificar_partidos, CronTrigger(minute="*/10", timezone=TZ_CHILE), id="verificar_partidos")
+    ap_scheduler.add_job(_job_informe_semanal, CronTrigger(day_of_week="sun", hour=21, minute=30, timezone=TZ_CHILE), id="informe_semanal")
+    ap_scheduler.add_job(_job_verificar_partidos, "date", run_date=datetime.now(TZ_CHILE) + timedelta(seconds=45), id="verificar_partidos_arranque")
     # Refresco de cuotas/tablas de hoy y mañana, con tope diario de peticiones (ver
     # `_job_refresco_cuotas`). Dos pasadas al día: antes de Top Picks/auto-evaluación no hace falta
     # (la caché de liga dura 2h), por eso 07:15 y 15:15 y no más — el tope protege la cuota mensual.
@@ -603,13 +671,24 @@ app.include_router(web_catalog.router)
 app.add_api_route("/webhook/kairos-app", app_gateway.deportivo, methods=["POST"])
 
 
+def _estado_verificacion() -> dict:
+    """Cola de verificación por estado y cuántas llevan más de 90 min vencidas; nunca rompe el healthcheck (sin tabla → `disponible: false`)."""
+    try:
+        from backend.api.services import verificacion
+
+        with SessionLocal() as db:
+            return {"disponible": True, **verificacion.estado_cola(db)}
+    except Exception as exc:  # noqa: BLE001
+        return {"disponible": False, "motivo": type(exc).__name__}
+
+
 @app.get("/health")
 def health() -> dict:
     """Healthcheck mínimo del backend deportivo, independiente de Telegram y del agente."""
     from backend.api.core.esquema import estado_esquema
     from backend.api.services import consenso as _consenso
 
-    return {"status": "ok", "component": "sports-bot", "version": app.version,
+    return {"status": "ok", "component": "sports-bot", "version": app.version, "verificacion": _estado_verificacion(),
             "consenso": {"contrato": _consenso.CONTRATO_CONSENSO, "pesos": dict(_consenso.PESOS_BASE)}, "esquema": estado_esquema()}  # MB-44: el agente registra esto como estado de la pieza «bot»
 
 

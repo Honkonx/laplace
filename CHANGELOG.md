@@ -1,6 +1,11 @@
 # Changelog
 
 ## Sin publicar (desde la 1.0.0)
+- Verificación automática: cada pronóstico entra a una cola con la hora del partido en UTC y, a inicio + 140 min, se busca el resultado (base local, luego BSD y api-football con tope por corrida), se guarda con los goles de cada equipo y se califica todo lo enlazado; reintentos escalonados, aplazados diarios y 3 días sin dato = sin resultado. Trabajo cada 10 min, recuperación al arrancar, estado en `/health` e informe semanal (`/api/v1/ml/informe-semanal`).
+- La cola de verificación consulta LiveScore por fecha (una petición por día cubre todos los partidos), BSD y api-football (el plan gratuito exige `id`), y avisa al administrador si hay verificaciones atrasadas.
+- Goles de cada equipo: goles esperados, probabilidad de 0, 1, 2 y 3 o más goles y de marcar, en el modelo, el bot, el agente, la web y la PWA; el marcador exacto se muestra con su tasa real de acierto (≈ 12 %).
+- Máquina del tiempo (`backend/scripts/maquina_del_tiempo.py`): repite partidos pasados con reloj simulado y resultado oculto, con ligas sintéticas de verdad conocida y escenarios adversos, para probar el circuito y calibrar umbrales antes de dejarlo correr solo.
+- Horas: LiveScore entrega la hora en UTC+7 y Chile cambia de horario; las horas del partido ya se calculan con la zona real.
 - Modelo propio de Laplace (ratings Elo y tasas de gol con regresión logística jerárquica, combinado con las cuotas sin margen) y su memoria por equipo en la base, reconstruida a diario; los equipos recién ascendidos entran con su historia.
 - Simulador de temporadas (campeón, copa y descenso) con núcleo en Rust, respaldo en Go y en Python, y un servicio local en Go con tope de simulaciones y plazo que mata el cálculo; en la web, la PWA, Telegram y el agente es solo para planes con acceso al simulador y administradores.
 - Ligas identificadas por nombre y país: dos competiciones homónimas de países distintos ya no se mezclan en el menú, la web ni la base.

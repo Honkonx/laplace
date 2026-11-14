@@ -182,6 +182,11 @@ def guardar_analisis_multimodelo(db: Session, **campos) -> dict:
         ))
         modulos_insertados += 1
 
+    # El resultado se verifica solo a la hora del partido (cola `verificaciones`); una falla de la cola no afecta al análisis guardado.
+    from backend.api.services import verificacion
+
+    verificacion.encolar_seguro(db, partido_id=partido_id, fecha_partido=campos.get("fecha_partido") or campos.get("fecha"), local=fila.local, visitante=fila.visitante,
+                                liga=fila.liga, inicio_utc=campos.get("kick_off_utc") or campos.get("inicio_utc"), origen="bot")
     db.commit()
     return {"guardado": True, "partido_id": partido_id, "comparativo_id": fila.id,
             "modulos_insertados": modulos_insertados}

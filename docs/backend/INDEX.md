@@ -24,5 +24,6 @@ Las cuatro referencias se regeneran con `python backend/scripts/generar_referenc
 - Simulador de liga (2026-11-12): [`SIMULADOR_PUBLICO.md`](SIMULADOR_PUBLICO.md): público (planes pro/max y administradores) frente a interno, datos viejos + actuales, acceso, ligas. el actualizador de la capa «actual» (no publicado) trae la temporada en curso cada día.
 - Motores nativos (2026-11-12): [`MOTORES_NATIVOS.md`](MOTORES_NATIVOS.md): Rust (cálculo), Go (servicio local `simd` y respaldo) y Python (lógica), cadena, mediciones y compilación.
 - Modelos, algoritmos y datos (2026-11-12): [`modelos/INDEX.md`](modelos/INDEX.md): lo que tenemos, lo que nos falta, diferencias entre enfoques, fuentes de datos, bots y productos, y algoritmos de otros deportes.
+- Verificación automática (2026-11-14): [`VERIFICACION_AUTOMATICA.md`](VERIFICACION_AUTOMATICA.md): cola por hora de partido, cierre único, planificador, informe semanal, autopiloto y goles por equipo.
 - Memoria del modelo (2026-11-12): [`MEMORIA_Y_FUENTES_DEL_MODELO.md`](MEMORIA_Y_FUENTES_DEL_MODELO.md): estado por equipo en la base, capa «actual» con ESPN, recién llegados y predicción conforme.
 - Ligas y partidos (2026-11-12): [`LIGAS_Y_PARTIDOS.md`](LIGAS_Y_PARTIDOS.md): identidad nombre + país, `liga_pais`, menú, catálogo y reclasificador de filas viejas.

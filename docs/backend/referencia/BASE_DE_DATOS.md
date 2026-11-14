@@ -2,7 +2,7 @@
 
 > Generado por `backend/scripts/generar_referencia_docs.py` a partir del código. No se edita a mano: se regenera con ese script (una prueba avisa si quedó desactualizado).
 
-59 tablas, tomadas de los modelos de SQLAlchemy (`backend/api/models/`). SQLite por defecto; PostgreSQL con `DATABASE_URL`. Las fechas se escriben siempre desde Python.
+60 tablas, tomadas de los modelos de SQLAlchemy (`backend/api/models/`). SQLite por defecto; PostgreSQL con `DATABASE_URL`. Las fechas se escriben siempre desde Python.
 
 ## `accion_admin_auditoria`
 
@@ -969,3 +969,26 @@
 | `rol` | VARCHAR | no | — |
 | `terms_version` | VARCHAR | sí | — |
 | `terms_accepted_at` | TEXT | sí | — |
+
+## `verificaciones`
+
+| Columna | Tipo | Nulo | Clave / valor por defecto |
+|---|---|---|---|
+| `partido_id` | VARCHAR(64) | no | PK |
+| `fecha_partido` | VARCHAR(16) | sí | — |
+| `inicio_utc` | VARCHAR(24) | sí | — |
+| `local` | TEXT | sí | — |
+| `visitante` | TEXT | sí | — |
+| `liga` | TEXT | sí | — |
+| `origen` | VARCHAR(24) | no | — |
+| `estado` | VARCHAR(16) | no | — |
+| `intentos` | INTEGER | no | defecto `0` |
+| `proximo_intento` | VARCHAR(24) | sí | — |
+| `ultima_fuente` | VARCHAR(24) | sí | — |
+| `ultimo_error` | TEXT | sí | — |
+| `goles_local` | INTEGER | sí | — |
+| `goles_visitante` | INTEGER | sí | — |
+| `creado_en` | VARCHAR(24) | no | — |
+| `resuelto_en` | VARCHAR(24) | sí | — |
+
+Índices: `ix_verificaciones_estado` (estado); `ix_verificaciones_fecha_partido` (fecha_partido); `ix_verificaciones_proximo_intento` (proximo_intento)

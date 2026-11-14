@@ -107,10 +107,11 @@ async def _consultar_fixtures_apifootball(client: httpx.AsyncClient, fixture_ids
     resultados: dict[str, dict] = {}
     for i in range(0, len(fixture_ids), 20):
         lote = fixture_ids[i : i + 20]
-        ids_str = "-".join(str(fid) for fid in lote)
+        # El plan gratuito de api-football rechaza `ids` («Free plans do not have access to the Ids parameter», medido el 2026-11-14): un solo partido va por `id`.
+        consulta = f"id={lote[0]}" if len(lote) == 1 else f"ids={'-'.join(str(fid) for fid in lote)}"
         try:
             r = await client.get(
-                f"{APIF_BASE}/fixtures?ids={ids_str}",
+                f"{APIF_BASE}/fixtures?{consulta}",
                 headers={"x-apisports-key": settings.SPORTS_API_KEY},
                 timeout=15,
             )

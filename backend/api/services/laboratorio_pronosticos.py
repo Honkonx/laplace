@@ -83,7 +83,7 @@ def registrar_pronostico(db: Session, *, experimento_codigo: str, partido_id: st
                          prob_empate: float | None = None, prob_visitante: float | None = None,
                          marcador_probable: str | None = None, goles_local_esperados: float | None = None,
                          goles_visitante_esperados: float | None = None, rango_goles_total: str | None = None,
-                         prob_empate_90: float | None = None) -> PronosticoExperimental:
+                         prob_empate_90: float | None = None, ahora: datetime | None = None) -> PronosticoExperimental:
     """Registra una observación de sombra sin permitir retrospectiva.
 
     Solo acepta probabilidades 1X2 completas y normalizadas. Si se conoce kickoff, el corte
@@ -130,6 +130,9 @@ def registrar_pronostico(db: Session, *, experimento_codigo: str, partido_id: st
     )
     db.add(fila)
     db.flush()
+    from backend.api.services import verificacion   # el resultado se verifica solo a la hora del partido
+
+    verificacion.encolar_seguro(db, partido_id=partido_id, fecha_partido=fecha_partido, local=local, visitante=visitante, liga=liga, inicio_utc=hora_kickoff, origen="laboratorio", ahora=ahora)   # `ahora`: el reloj simulado de la máquina del tiempo
     return fila
 
 

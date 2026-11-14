@@ -192,6 +192,6 @@ def test_los_goles_validados_del_modelo_se_muestran_y_los_no_validados_no():
     base = {**_resultado_motor_base(), "modelo_laplace": {"fuente": "modelo_laplace", "degradado": False, "p1x2": {"local": 0.5, "empate": 0.3, "visitante": 0.2},
                                                            "goles_esperados": {"local": 1.6, "visitante": 1.1, "total": 2.7}, "btts_si": 0.52, "mas_2_5": 0.55, "marcador_mas_probable": "1-1"}}
     con = formatear_mensaje_free(base, "@c", "https://t.me/g")
-    assert "ambos marcan 52%" in con and "más de 2,5 55%" in con and "marcador 1-1" in con
+    assert "ambos marcan 52%" in con and "más de 2,5 55%" in con and "marcador más probable 1-1" in con
     sin = formatear_mensaje_free({**base, "modelo_laplace": {**base["modelo_laplace"], "goles_esperados": None, "btts_si": None, "mas_2_5": None, "marcador_mas_probable": None}}, "@c", "https://t.me/g")
     assert "ambos marcan" not in sin and "marcador" not in sin.lower().replace("marcador esperado", "") and "Modelo Laplace" in sin

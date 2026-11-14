@@ -35,6 +35,7 @@ from backend.api.models.predicciones import (
 from backend.api.models.push import PushToken
 from backend.api.models.scheduler import SchedulerRun
 from backend.api.models.tokens import TokenRevocado
+from backend.api.models.verificacion import Verificacion  # noqa: F401
 from backend.api.models.usuarios import CodigoAcceso, UsoDiarioApp, UsoDiarioIaApp, Usuario
 
 __all__ = [

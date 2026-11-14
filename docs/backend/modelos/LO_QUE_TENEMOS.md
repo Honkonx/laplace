@@ -5,10 +5,11 @@ Cada fila apunta al archivo donde vive. Las cifras de rendimiento son las medida
 ## A. Modelos de pronóstico (1X2, goles, marcadores)
 | Pieza | Qué hace | Dónde | Estado |
 |---|---|---|---|
-| **Modelo Laplace** (Elo + tasas de gol con memoria + forma + tiros → regresión logística jerárquica por liga) | Pronóstico 1X2 y de goles propio, entrenado con el histórico real; en servicio la generación `g3` | `ml/laplace/entrenamiento.py`, `servicio.py` | Activo. Prueba desde 2023-07-01 (44.289 partidos, 49 ligas): log loss 1,0214 y RPS 0,2101 frente a 1,0712 y 0,2272 de la tasa base |
+| **Modelo Laplace** (Elo + tasas de gol con memoria + forma + tiros → regresión logística jerárquica por liga) | Pronóstico 1X2 y de goles propio, entrenado con el histórico real; en servicio la generación `g3` | `ml/laplace/entrenamiento.py`, `servicio.py` | Activo. Prueba desde 2023-07-01 (44.289 partidos, 49 ligas): log loss 1,0214 y RPS 0,2101 frente a 1,0712 y 0,2272 de la tasa base. Medición del 2026-11-13 (`medicion_segmentos_y_cierre.json`, 45.707 partidos): +0,05309 de log loss sobre la tasa base (z 35,3) y −0,02019 frente al cierre del mercado (n 37.034, z −22,4); el n difiere entre documentos porque cada uno usa su subconjunto, no se restan |
+| Mercados de goles (g3: ambos marcan, más de 1,5/2,5/3,5) | Probabilidad de goles calibrada | `ml/laplace/pronostico.py` | Activo. Supera a la tasa base (más de 2,5: +0,0062, z 14,3; ambos marcan: +0,00363, z 11,5, 45.707 partidos) pero **pierde contra el mercado**: más de 2,5 frente al cierre −0,01231 (z −14,9, n 21.857) y frente a la apertura −0,00993 (`medicion_mercados_de_goles.json`, 2026-11-13). Ambos marcan no tiene cuotas en el maestro |
 | Variante con tiros (`v1.1`) | Añade tiros y tiros a puerta como señal | `ml/laplace/entrenamiento.py` (variable extra `tiros`) | En sombra: no se promueve sin tiros en vivo |
 | **Dixon-Coles** semanal | Ataque y defensa por equipo, ventaja de local y corrección de marcadores bajos | `ml/dixon_coles.py`, `services/modelo_historico*.py` | Activo como módulo `historico` y respaldo del modelo propio |
-| **Apilado con el mercado** | Combina el modelo con las cuotas sin margen (método de Shin) | `ml/laplace/apilado.py`, `ml/mercado.py` | Activo con cuotas: 0,9946 frente a 0,9957 del mercado solo (20.960 partidos) |
+| **Apilado con el mercado** | Combina el modelo con las cuotas sin margen (método de Shin) | `ml/laplace/apilado.py`, `ml/mercado.py` | Activo con cuotas: 0,9946 frente a 0,9957 del mercado solo (20.960 partidos; −0,0011, **significancia no calculada**: `registro_experimentos.md` la anota «no calculada»; el apilado equivalente del consenso empata, z +1,1) |
 | Prior de equipo nuevo | Pronóstico para un equipo sin historia (un ascendido) | `services/modelo_historico.py`, `ml/laplace/servicio.py` (`_desde_liga`) | Activo; medido: un equipo nuevo gana a la tasa base (RPS 0,2120 frente a 0,2253), dos no |
 | Consenso de módulos | Mezcla ponderada de `odds` 0,70, `historico` 0,25, `tabla` 0,03 y `forma` 0,02 (`poisson`, `h2h` y `bsd_ml` con peso 0) | `services/consenso.py` | Activo; la evaluación walk-forward fijó los pesos |
 | Módulos del consenso | Poisson, forma, H2H (con respaldo del historial propio), cuotas, tabla (con respaldo de la tabla propia), histórico, BSD | `services/pronostico.py`, `form_recent.py`, `h2h*.py`, `odds*.py`, `tabla_pos.py`, `tabla_propia.py`, `bsd_predictions.py` | Activos |
@@ -24,7 +25,7 @@ Cada fila apunta al archivo donde vive. Las cifras de rendimiento son las medida
 ## C. Incertidumbre, calibración y decisión
 | Pieza | Qué hace | Dónde | Estado |
 |---|---|---|---|
-| Calibración | Isotónica sobre datos de backtest; ECE medido (0,0083 en g2) | `services/calibracion.py`, `services/backtesting.py` | Activo |
+| Calibración | Isotónica sobre datos de backtest; ECE 0,0083 en g2 y 0,00925 en la prueba de calibración del 2026-11-13 (modelo con corte 2022-07-01, 43.950 partidos: son dos mediciones, no una corrección); una temperatura global o por liga no mejora (`medicion_calibracion_por_liga.json`) | `services/calibracion.py`, `services/backtesting.py` | Activo |
 | Intervalos por covarianza y abstención | Incertidumbre de la probabilidad y «no decidir» | `ml/laplace/incertidumbre.py` | Activo |
 | Etiquetas de confianza calibradas | ALTA ≥ 0,60, MEDIA 0,50–0,60, BAJA < 0,50, con frecuencias reales | `services/consenso.py`, `nivel_evidencia.py` | Activo |
 | Puerta de calidad de datos | Sin fuentes independientes no se publica pronóstico | `services/calidad_datos.py` | Activo |

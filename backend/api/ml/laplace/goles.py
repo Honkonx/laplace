@@ -18,6 +18,8 @@ LINEA_DE_INV = {v: k for k, v in LINEA_DE.items()}
 FRACCION_RESERVA = 0.15
 MIN_FILAS = 2000
 TOPE_LAMBDA = (0.15, 5.0)
+# Medido el 2026-11-14 (backend/scripts/medir_goles_por_equipo.py, 45.707 partidos fuera de muestra): el marcador exacto más probable acierta 12,4 % de las veces, igual que decir siempre 1-1 (12,0 %).
+ACIERTO_HISTORICO_MARCADOR = 0.124
 
 
 def logit(p: float) -> float:
@@ -27,6 +29,17 @@ def logit(p: float) -> float:
 
 def sigmoide(z: float) -> float:
     return 1 / (1 + math.exp(-max(min(z, 30.0), -30.0)))
+
+
+def _ll_poisson(lam: float, k: int) -> float:
+    lam = max(lam, 1e-6)
+    return -(k * math.log(lam) - lam - math.lgamma(k + 1))
+
+
+def por_equipo(lam: float) -> dict:
+    """Lo que el modelo dice de los goles de UN equipo: esperados y probabilidad de 0, 1, 2 y 3 o más (Poisson sobre la λ ya encogida); `marca` = al menos un gol."""
+    p = [math.exp(-_ll_poisson(lam, k)) for k in range(3)]
+    return {"esperados": round(lam, 2), "p0": round(p[0], 4), "p1": round(p[1], 4), "p2": round(p[2], 4), "p3_o_mas": round(max(0.0, 1 - sum(p)), 4), "marca": round(1 - p[0], 4)}
 
 
 def encoger(lam: float, media: float, s: float) -> float:
@@ -148,6 +161,7 @@ def calibrar(por_liga: dict[str, list[tuple]], rho: float = dixon_coles.RHO_POR_
     parciales = {m: ajustar_platt(X[m], Y[m]) for m in MERCADOS}
     acum = {m: [0.0, 0.0, 0] for m in MERCADOS}  # ll modelo, ll tasa base, n
     err_mod = err_base = 0.0
+    ll_eq_mod = ll_eq_base = 0.0   # log-verosimilitud de Poisson de cada equipo: el modelo frente a la media de la liga
     n_res = 0
     for c, t in tasas_e.items():
         if not reserva[c]:
@@ -159,13 +173,18 @@ def calibrar(por_liga: dict[str, list[tuple]], rho: float = dixon_coles.RHO_POR_
                 acum[m][0] += _log_loss(p, real[m])
                 acum[m][1] += _log_loss(t[m], real[m])
                 acum[m][2] += 1
-            err_mod += abs(encoger(fila[0], fila[2], s_e) + encoger(fila[1], fila[3], s_e) - fila[4] - fila[5])
+            lh_e, la_e = encoger(fila[0], fila[2], s_e), encoger(fila[1], fila[3], s_e)
+            ll_eq_mod += _ll_poisson(lh_e, fila[4]) + _ll_poisson(la_e, fila[5])
+            ll_eq_base += _ll_poisson(fila[2], fila[4]) + _ll_poisson(fila[3], fila[5])
+            err_mod += abs(lh_e + la_e - fila[4] - fila[5])
             err_base += abs(t["media_total"] - fila[4] - fila[5])
             n_res += 1
     reserva_inf = {m: {"n": a[2], "log_loss": round(a[0] / a[2], 5), "log_loss_tasa_base": round(a[1] / a[2], 5)} for m, a in acum.items() if a[2]}
     reserva_inf["goles_totales"] = {"n": n_res, "error_abs": round(err_mod / max(n_res, 1), 4), "error_abs_media_liga": round(err_base / max(n_res, 1), 4)}
     util = {m: bool(reserva_inf.get(m)) and reserva_inf[m]["log_loss"] < reserva_inf[m]["log_loss_tasa_base"] for m in MERCADOS}
     util["total"] = reserva_inf["goles_totales"]["error_abs"] < reserva_inf["goles_totales"]["error_abs_media_liga"]
+    reserva_inf["goles_por_equipo"] = {"n": n_res, "poisson_mejora_por_partido": round((ll_eq_base - ll_eq_mod) / max(2 * n_res, 1), 5)}
+    util["equipo"] = n_res > 0 and ll_eq_mod < ll_eq_base   # los goles de CADA equipo (no el total) son lo que respalda la medición: se muestran solo si ganan a la media de la liga
     # parámetros finales: con TODAS las filas (la reserva solo sirvió para decidir qué mercados se muestran)
     tasas = {c: tasas_de_liga(fs) for c, fs in por_liga.items() if len(fs) >= 100}
     XF: dict[str, list] = {m: [] for m in MERCADOS}

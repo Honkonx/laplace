@@ -120,4 +120,14 @@ describe("PrediccionResultado sin pronóstico explicado", () => {
     render(<PrediccionResultado local="River" visitante="Boca" resultado={base({ prob_ponderada: { local: 0.62, empate: 0.24, visitante: 0.14 }, peso_efectivo: { odds: 1 }, modulos_en_consenso: ["odds"] }, { modelo_laplace: null })} />);
     expect(screen.queryByText(/Modelo Laplace/)).toBeNull();
   });
+
+  it("muestra la sección Goles por equipo solo cuando llega goles_por_equipo", () => {
+    const g = { local: { esperados: 1.7, p0: 0.18, p1: 0.31, p2: 0.27, p3_o_mas: 0.24, marca: 0.82 }, visitante: { esperados: 1.1, p0: 0.33, p1: 0.37, p2: 0.2, p3_o_mas: 0.1, marca: 0.67 }, acierto_historico_marcador: 0.124 };
+    const modelo = { fuente: "modelo_laplace", degradado: false, p1x2: { local: 0.5, empate: 0.25, visitante: 0.25 }, goles_esperados: null, btts_si: null, mas_2_5: null, marcador_mas_probable: "1-1", goles_por_equipo: g };
+    const consenso = { prob_ponderada: { local: 0.62, empate: 0.24, visitante: 0.14 }, peso_efectivo: { odds: 1 }, modulos_en_consenso: ["odds"] };
+    const { rerender } = render(<PrediccionResultado local="River" visitante="Boca" resultado={base(consenso, { modelo_laplace: modelo })} />);
+    expect(screen.getByText("Goles por equipo")).toBeInTheDocument();
+    rerender(<PrediccionResultado local="River" visitante="Boca" resultado={base(consenso, { modelo_laplace: { ...modelo, goles_por_equipo: null } })} />);
+    expect(screen.queryByText("Goles por equipo")).toBeNull();
+  });
 });

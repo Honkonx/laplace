@@ -109,12 +109,11 @@ def comparar_en_vivo(db: Session, variante: str = "laplace_modelo") -> dict:
 TZ_CHILE = ZoneInfo("America/Santiago")
 MARGEN_ANTES_DEL_PARTIDO = timedelta(minutes=30)
 HORIZONTE = timedelta(hours=48)
-LIMITE_POR_CORRIDA = 400
+LIMITE_POR_CORRIDA = 3000   # antes 400: los partidos de ligas sin cobertura llenaban el tope y casi no entraba ninguno nuevo («2 nuevos de 400», auditoría 2026-11-14)
 
 
 def _inicio_estimado(p: PartidoDia) -> datetime | None:
-    """Inicio del partido en UTC: `kick_off_utc` si viene; si no, `fecha` + `hora_chile`. Esa hora la calcula el gateway como UTC-4 fijo a partir del instante real
-    (`gateway_fuentes._timestamp_to_esd`), así que leerla con -4 recupera el instante verdadero. Si aun así quedara después del inicio real, el laboratorio lo rechaza solo
+    """Inicio del partido en UTC: `kick_off_utc` si viene; si no, `fecha` + `hora_chile`. Esa hora la calcula el gateway en hora de Chile (`core/horario.py`). Si aun así quedara después del inicio real, el laboratorio lo rechaza solo
     (`registrar_pronostico` exige corte anterior al inicio) y el partido se omite sin afectar a los demás."""
     if p.kick_off_utc:
         try:
@@ -122,8 +121,8 @@ def _inicio_estimado(p: PartidoDia) -> datetime | None:
             return (dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)).astimezone(timezone.utc)
         except ValueError:
             pass
-    try:
-        return datetime.strptime(f"{p.fecha} {p.hora_chile}", "%Y-%m-%d %H:%M").replace(tzinfo=timezone(timedelta(hours=-4))).astimezone(timezone.utc)
+    try:   # hora de pared de Chile con su horario de verano (antes un −4 fijo: en noviembre Chile está en UTC−3)
+        return datetime.strptime(f"{p.fecha} {p.hora_chile}", "%Y-%m-%d %H:%M").replace(tzinfo=TZ_CHILE).astimezone(timezone.utc)
     except (ValueError, TypeError):
         return None
 
@@ -141,9 +140,10 @@ def registrar_proximos(db: Session, ahora: datetime | None = None) -> dict:
     resumen = {"candidatos": 0, "registrados": 0, "sin_cobertura": 0, "ya_empezados": 0, "sin_hora": 0}
     from backend.api.services import modelo_historico
 
+    registrados = {pid for (pid,) in db.query(PronosticoExperimental.partido_id).filter(PronosticoExperimental.variante == "laplace_modelo").all()}
     filas = (db.query(PartidoDia).filter(PartidoDia.fecha.in_(fechas), PartidoDia.status == "scheduled").order_by(PartidoDia.fecha, PartidoDia.hora_chile).limit(LIMITE_POR_CORRIDA).all())
     for p in filas:
-        if not (p.local and p.visitante and p.match_id):
+        if not (p.local and p.visitante and p.match_id) or str(p.match_id) in registrados:   # lo ya registrado no gasta ni el cálculo ni el tope
             continue
         resumen["candidatos"] += 1
         inicio = _inicio_estimado(p)

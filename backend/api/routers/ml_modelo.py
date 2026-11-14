@@ -118,6 +118,14 @@ def deriva(_admin: dict = Depends(requerir_admin), db: Session = Depends(get_db)
     return {"contrato": VERSION_CONTRATO, **deriva_mod.deriva_de_salidas(db, activo.id)}
 
 
+@router.get("/informe-semanal")
+def informe_semanal_endpoint(dias: int = 7, _admin: dict = Depends(requerir_admin), db: Session = Depends(get_db)) -> dict:
+    """Informe de lo pronosticado y verificado solo en los últimos `dias` (1 a 90): embudo de verificación, 1X2 frente a la tasa base, goles por equipo y por liga (solo administradores)."""
+    from backend.api.services import informe_semanal
+
+    return {"contrato": VERSION_CONTRATO, **informe_semanal.generar(db, dias=max(1, min(int(dias), 90)))}
+
+
 @router.get("/cadena")
 def cadena(_admin: dict = Depends(requerir_admin), db: Session = Depends(get_db)) -> dict:
     """Verifica la cadena de sellos de los pronósticos guardados (MP-5): `ok` o la primera ruptura (solo administradores)."""

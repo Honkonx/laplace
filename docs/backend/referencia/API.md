@@ -2,7 +2,7 @@
 
 > Generado por `backend/scripts/generar_referencia_docs.py` a partir del código. No se edita a mano: se regenera con ese script (una prueba avisa si quedó desactualizado).
 
-113 rutas en 16 grupos. «Acceso» sale de las dependencias reales de cada ruta; la API interactiva está en `/docs` con el backend encendido.
+114 rutas en 16 grupos. «Acceso» sale de las dependencias reales de cada ruta; la API interactiva está en `/docs` con el backend encendido.
 
 ## (sin grupo)
 
@@ -113,6 +113,7 @@
 | GET | `/api/v1/ml/equipo/{liga}/{equipo}` | público | Memoria compartida (MP-4): lo que el modelo activo sabe de un equipo (rating, goles, forma, partidos, fiabilidad, fecha y origen). |
 | GET | `/api/v1/ml/errores` | admin (JWT con rol admin) | Memoria de errores (MP-1): dónde falla el modelo activo, con n por segmento (solo administradores). |
 | GET | `/api/v1/ml/health` | público | — |
+| GET | `/api/v1/ml/informe-semanal` | admin (JWT con rol admin) | Informe de lo pronosticado y verificado solo en los últimos `dias` (1 a 90): embudo de verificación, 1X2 frente a la tasa base, goles por equipo y por liga (solo… |
 | GET | `/api/v1/ml/modelo` | público | Ficha del modelo activo (model card en datos): versión, variables, ligas, mercados validados y huellas de reproducibilidad. |
 | GET | `/api/v1/ml/models` | admin (JWT con rol admin) | — |
 | POST | `/api/v1/ml/predict` | público | — |

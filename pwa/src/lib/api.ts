@@ -148,6 +148,27 @@ export interface TasaBaseLiga {
   partidos?: number | null;
 }
 
+export interface GolesEquipo {
+  esperados: number;
+  p0: number;
+  p1: number;
+  p2: number;
+  p3_o_mas: number;
+  marca: number;
+}
+
+export interface GolesPorEquipoResumen {
+  local: GolesEquipo;
+  visitante: GolesEquipo;
+  acierto_historico_marcador?: number | null;
+}
+
+/** Lectura del modelo propio; los goles por equipo solo llegan si el modelo los validó. */
+export interface ModeloLaplaceResumen {
+  marcador_mas_probable?: string | null;
+  goles_por_equipo?: GolesPorEquipoResumen | null;
+}
+
 export interface ResultadoPrediccion {
   partido_id: string;
   local: string;
@@ -162,6 +183,7 @@ export interface ResultadoPrediccion {
   calidad_datos?: { eligible: boolean; tier?: string; sources?: string[]; source_count?: number; reason?: string | null };
   motivos_sin_pronostico?: string[];
   referencia_tasa_base?: TasaBaseLiga | null;
+  modelo_laplace?: ModeloLaplaceResumen | null;
 }
 
 export async function pedirPrediccion(partido: {

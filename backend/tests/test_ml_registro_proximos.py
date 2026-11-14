@@ -122,11 +122,11 @@ def test_el_trabajo_diario_registra_los_proximos_y_lo_deja_en_el_detalle(monkeyp
 
 
 def test_la_hora_chile_guardada_se_lee_con_el_mismo_desfase_con_que_se_calculo():
-    """El gateway guarda UTC-4 fijo; leerla con -4 devuelve el instante real (15:00 guardado = 19:00 UTC)."""
+    """El gateway guarda la hora de pared de Chile con su horario de verano: en noviembre es UTC−3 (15:00 guardado = 18:00 UTC; antes se leía con un −4 fijo)."""
     from backend.api.services.laboratorio_modelo_laplace import _inicio_estimado
 
     p = PartidoDia(fecha="2026-11-10", match_id="x", hora_chile="15:00", status="scheduled")
-    assert _inicio_estimado(p) == datetime(2026, 11, 10, 19, 0, tzinfo=timezone.utc)
+    assert _inicio_estimado(p) == datetime(2026, 11, 10, 18, 0, tzinfo=timezone.utc)
 
 
 def test_si_el_corte_no_fuera_anterior_al_inicio_el_laboratorio_lo_rechaza_y_se_omite(db, monkeypatch):

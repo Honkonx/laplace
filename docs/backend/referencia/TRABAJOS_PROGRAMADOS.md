@@ -17,6 +17,8 @@ El planificador (APScheduler) corre dentro del backend, en la zona horaria de Ch
 | `wfd_top_picks` | hour=9, minute=0 | `_job_top_picks` | Calcula y publica el informe diario de Top Picks en el canal. |
 | `wfe_resultados_2h` | hour=*/2, minute=0 | `_job_resultados` | Verifica los resultados finales y califica los pronósticos pendientes y las observaciones del laboratorio. |
 | `wfe_resultados_7am` | hour=7, minute=0 | `_job_resultados` | Verifica los resultados finales y califica los pronósticos pendientes y las observaciones del laboratorio. |
+| `verificar_partidos` | minute=*/10 | `_job_verificar_partidos` | Verifica solo cada pronóstico emitido: a inicio + 140 min del partido busca el resultado, lo guarda y califica todo lo enlazado (AU-2/AU-3). |
+| `informe_semanal` | day_of_week=sun, hour=21, minute=30 | `_job_informe_semanal` | Domingo por la noche: el informe de aciertos de la semana (solo lo verificado solo), guardado y enviado al administrador (AU-6). |
 | `refresco_cuotas` | hour=7,15, minute=15 | `_job_refresco_cuotas` | Refresca las cuotas (The Odds API) y las tablas de posiciones (football-data) de los partidos de hoy y mañana, dentro de un tope diario. |
 | `colector_resultados` | hour=2,12, minute=30 | `_job_colectar_resultados` | Guarda los marcadores finales recientes y los partidos programados para que la capa en vivo de los modelos crezca sola. |
 | `reajuste_modelos` | day_of_week=sun, hour=3, minute=30 | `_job_reajustar_modelos` | Reajusta cada semana los modelos Dixon-Coles con los resultados verificados y reemplaza el artefacto solo si la validación pasa. |

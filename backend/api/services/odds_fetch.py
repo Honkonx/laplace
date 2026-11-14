@@ -29,6 +29,8 @@ import httpx
 from sqlalchemy.orm import Session
 
 from backend.api.core.config import settings
+from backend.api.core.horario import a_texto_utc, a_utc
+from backend.api.core.tiempo import utc_ahora
 from backend.api.db.cache import guardar_stats_cache, leer_stats_cache, ttl_horas_odds_dinamico
 from backend.api.services._http_retry import cuerpo_api_football, get_con_reintento_429
 from backend.api.services.normalizacion import nombre_equipo_bsd, normalizar_nombre
@@ -442,6 +444,21 @@ async def _apifootball_predictions(client: httpx.AsyncClient, fixture_id: str) -
 
 
 async def obtener_odds_partido(
+    client: httpx.AsyncClient, db: Session, local: str, visitante: str,
+    odds_key: str | None, fixture_id: str | None, fecha: str,
+    kick_off_utc: str | None = None,
+) -> dict:
+    """La cascada (`_cascada_odds`) más dos marcas de cuándo se consultó la cuota: `odds_consultadas_en` (UTC) y, si se conoce el inicio, `odds_min_al_inicio`.
+
+    Sin ellas no se sabía si el bot recibía cuotas de apertura o de cierre (MJ-3, 2026-11-14): la cuota puede venir de la caché de 2 h (30 min si faltan menos de 2 h), así que la marca
+    dice cuándo se pidió, no cuándo la fijó la casa; con `odds_min_al_inicio` se mide cuánto se acerca al cierre de verdad."""
+    resultado = await _cascada_odds(client, db, local, visitante, odds_key, fixture_id, fecha, kick_off_utc)
+    ahora = utc_ahora().replace(tzinfo=None)
+    inicio = a_utc(kick_off_utc)
+    return {**resultado, "odds_consultadas_en": a_texto_utc(ahora), "odds_min_al_inicio": round((inicio - ahora).total_seconds() / 60) if inicio else None}
+
+
+async def _cascada_odds(
     client: httpx.AsyncClient, db: Session, local: str, visitante: str,
     odds_key: str | None, fixture_id: str | None, fecha: str,
     kick_off_utc: str | None = None,

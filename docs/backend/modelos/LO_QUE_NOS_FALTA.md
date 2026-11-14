@@ -1,4 +1,6 @@
-# Lo que nos falta (2026-11-12)
+# Lo que nos falta (2026-11-12, reconciliado el 2026-11-14)
+
+Reconciliación del 2026-11-14 contra el código y `backend/data/resultados/*.json`: las filas A4, E1, D1 y G2 se corrigieron con su evidencia (detalle en `un documento archivado del autor (no publicado)`).
 
 Lista priorizada. «Evidencia» usa las marcas de la investigación: **✔** contrastado por el asistente principal contra la fuente o el código esta ronda, **[S]** solo resumen o fragmento de un buscador, **[I]** inferido, **[?]** sin evidencia.
 Regla de todo lo de esta lista: nada entra al consenso ni al producto sin medirse walk-forward contra la tasa base y el mercado sobre los mismos partidos (`.claude/rules/evidencia-historica-antes-de-promover.md`).
@@ -10,7 +12,7 @@ Lo ya hecho está en `LO_QUE_TENEMOS.md`; la comparación entre enfoques, en `DI
 | 1 | **Regresión a la media del Elo entre temporadas** (y un K por competición) | El Elo de NHL usa K = 6 y regresión del 30 % hacia la media entre temporadas [S]; en fútbol lo justifica la rotación de plantillas [I]. Hoy `EstadoLiga.actualizar` **no** distingue temporadas | minutos | Walk-forward (`evaluar_regresion_temporada.py`); debe vencer al actual por ≥ 0,0005 de log loss | **Medido el 2026-11-12: señal débil, no demostrada** (ver abajo) |
 | 2 | **Incertidumbre de rating** (tipo Glicko: una desviación por equipo que crece sin partidos y baja con ellos) | Sirve para recién ascendidos y para propagar incertidumbre a la simulación de temporada; respaldo en fútbol: Lasek 2013 [S] | bajo (~60 líneas) | Cobertura de los intervalos y RPS en equipos con < 20 partidos | pendiente |
 | 3 | **Estado-espacio / Kalman de ataque y defensa** | Koopman y Lit (rentabilidad frente a cuotas en la Premier [S]); Egidi 2025: Brier de la Premier de 0,616–0,619 a 0,602 y RPS de 0,232–0,233 a 0,224 en las últimas 3 jornadas de 2024/25 (✔ leído entero por el subagente; mejora modesta y de una sola temporada) | medio | Walk-forward 49 ligas contra el modelo actual | pendiente |
-| 4 | **Calibración por liga** (temperatura vectorial o beta) con ECE por liga | La isotónica existe; la evidencia comparativa en fútbol no se encontró [?] (Guo 2017 es general) | medio | ECE y log loss por liga fuera de muestra | pendiente |
+| 4 | **Calibración por liga** (temperatura vectorial o beta) con ECE por liga | La isotónica existe; la evidencia comparativa en fútbol no se encontró [?] (Guo 2017 es general) | medio | ECE y log loss por liga fuera de muestra | **Medida y descartada (2026-11-13, `medicion_calibracion_por_liga.json`, 43.950 partidos):** temperatura por liga −0,00106 de log loss (z −3,0, no cumple la puerta; 17 de 45 ligas mejoran); global −0,00023 (z −3,7); ECE 0,00925 sin calibrar, 0,01310 con la global y 0,00884 por liga. Isotónica y beta frente a temperatura: sin medir |
 | 5 | **Predicción conforme dentro del producto** como «rango plausible» | Medido por nosotros: cobertura 79,5 % para 80 % y 89,9 % para 90 %, pero **no uniforme por liga** (peor: N1 70,3 %) ✔ | bajo | Cobertura mensual por liga en sombra | experimento hecho, producto pendiente |
 | 6 | **Pooling logarítmico frente al lineal** del consenso y extremizing ajustado | Satopää y Ungar [S]; con módulos dependientes se espera mejora pequeña o nula [I] | bajo | Walk-forward del consenso | pendiente |
 | 7 | **Pesos adaptativos (Hedge)** con el mercado como ancla | Cota de regret con pérdida log [S]; beneficio práctico pequeño [I] | medio | En sombra | pendiente |
@@ -40,13 +42,13 @@ Lo ya hecho está en `LO_QUE_TENEMOS.md`; la comparación entre enfoques, en `DI
 ## D. Agente e IA
 | # | Falta | Detalle |
 |---|---|---|
-| 1 | **Medir un modelo local para elegir herramientas** (Needle de 26 M o un Qwen3 8B) | Solo si el enrutador determinista falla; se compara con el conjunto dorado de 94 frases. Needle y Jev, Kev y Laya son modelos de decisión o de llamada a herramientas, no pronosticadores ✔ |
+| 1 | **Medir un modelo local para elegir herramientas** (Needle de 26 M o un Qwen3 8B) | Solo si el enrutador determinista falla; se compara con el conjunto dorado de 94 frases. Needle y Jev, Kev y Laya son modelos de decisión o de llamada a herramientas, no pronosticadores ✔. **Medido el 2026-11-13 (`evaluacion_proveedores_ia.json`, 20 frases): el enrutador de reglas acierta 20 de 20 y Gemini 8 de 20; el enrutador no falla, no hace falta el modelo local** |
 | 2 | **Verificador determinista de cifras en toda explicación** | Existe `depurar_cifras`; falta cubrir cada salida con un esquema y regenerar una vez si no coincide |
 
 ## E. Ingeniería y riesgo
 | # | Falta | Detalle |
 |---|---|---|
-| 1 | **Alerta de deriva** | Avisar si el RPS en vivo se aleja del histórico (la regla 50/200 solo promueve) |
+| 1 | **Alerta de deriva** | **Parcial:** la deriva de las probabilidades (PSI de 30 días frente a 120) existe en `ml/laplace/deriva.py`, la llama el trabajo diario (`ml/laplace/jobs.py:56`) y `GET /api/v1/ml/deriva`; solo alarma. Sigue sin existir la alerta por **RPS en vivo** frente al histórico (`MD-13`) |
 | 2 | **Términos y condiciones del modelo** | Por redactar: el alcance es el modelo, no el proyecto. Lo que cada fuente de datos permite sigue siendo lo que dicen sus términos (`FUENTES_DE_DATOS.md` §3) |
 | 3 | **simd en el instalador portable** | Hoy lo enciende `laplace.py` si existen los binarios |
 
@@ -70,7 +72,7 @@ Siguiente paso: llevar `regresion_temporada` como hiperparámetro a `afinar_mode
 | # | Falta | Detalle | Meta del plan |
 |---|---|---|---|
 | 1 | Inferencia y entrenamiento en Rust | Hoy solo la simulación; la inferencia tarda 0,6 ms en Python: solo si una medición lo exige | `MD-15` |
-| 2 | Defensa contra la inyección de instrucciones y prueba adversarial del agente | No se encontró en el código; el «saneo» existente solo limpia mensajes de error | `MD-16` |
+| 2 | Defensa contra la inyección de instrucciones y prueba adversarial del agente | **Existe** (`MD-16`/`MS-9`): `services/agent_saneo.py` y bloques delimitados como no confiables; `backend/tests/test_agent_inyeccion.py` con una lista de 32 ataques (contados en el código el 2026-11-14). Falta: la prueba no se ha corrido contra una IA real en cada cambio de proveedor | `MD-16` |
 | 3 | Curva riesgo-cobertura de la abstención | Falta medir cuánto mejora el acierto al abstenerse según el umbral | `MD-17` |
 | 4 | Paquete instalable, SDK y esquema JSON versionado de entrada y salida | Existe el OpenAPI en ejecución, no un documento versionado | `MD-18` |
 | 5 | Hoja de datos legible del conjunto de entrenamiento | Hoy solo hash, procedencia y rango en la base | `MD-18` |

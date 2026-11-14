@@ -58,9 +58,9 @@ def test_fecha_yyyymmdd_valida_y_basura():
 
 
 def test_timestamp_a_esd_aplica_el_offset_de_chile_tambien_al_dia():
-    # 02:30 UTC -> hora 22 (02-4 mod 24) pero la FECHA sigue siendo la UTC: ver defecto en el informe (debería ser 09)
+    # 02:30 UTC del 10 de noviembre = 23:30 del día 9 en Chile (UTC−3 en verano; antes un −4 fijo daba 22:30)
     ts = 1_794_277_800  # 2026-11-10T02:30:00Z
-    assert gateway_fuentes._timestamp_to_esd(ts) == "202611092230"  # noqa: SLF001
+    assert gateway_fuentes._timestamp_to_esd(ts) == "202611092330"  # noqa: SLF001
     assert gateway_fuentes._timestamp_to_iso(ts) == "2026-11-10T02:30:00"  # noqa: SLF001
 
 
@@ -327,7 +327,7 @@ def test_apifootball_agrupa_fixtures_y_usa_timestamp_o_valores_por_omision():
     por_liga = {s["Snm"]: s["Events"] for s in stages}
     assert set(por_liga) == {"Serie A", "Otras"}
     a = por_liga["Serie A"]
-    assert a[0]["Esd"] == "202611092230" and a[0]["kick_off_utc"] == "2026-11-10T02:30:00"
+    assert a[0]["Esd"] == "202611092330" and a[0]["kick_off_utc"] == "2026-11-10T02:30:00"
     assert a[0]["T1"][0]["Nm"] == "Roma" and a[0]["T2"][0]["Nm"] == "Lazio"
     assert a[1]["T1"][0]["Nm"] == "Local" and a[1]["T2"][0]["Nm"] == "Visit"
     sin_ts = por_liga["Otras"][0]

@@ -142,12 +142,16 @@ class EstadoLiga:
 
     @classmethod
     def de_dict(cls, d: dict) -> EstadoLiga:
-        base = {k: d[k] for k in ("elo", "gf", "gc", "n", "media_local", "media_visita", "total_partidos")}
+        # Los diccionarios se copian: `actualizar` los muta y el artefacto (en memoria o en caché) lo comparten varios llamadores; sin copia, un segundo recorrido
+        # empezaba donde terminó el primero (hallazgo de la máquina del tiempo, 2026-11-14). Los valores son números: la copia superficial basta.
+        base = {k: d[k] for k in ("elo", "gf", "gc", "n")} | {k: d[k] for k in ("media_local", "media_visita", "total_partidos")}
+        base = {k: dict(v) if isinstance(v, dict) else v for k, v in base.items()}
+        c = lambda clave: dict(d.get(clave, {}))  # noqa: E731
         # los artefactos anteriores a M3 no traen estos campos: se leen con los valores con los que se entrenaron
-        return cls(**base, forma=d.get("forma", {}), k_elo=d.get("k_elo", K_ELO), alfa=d.get("alfa", ALFA_GOLES), extras=tuple(d.get("extras", ())),
-                   t_for=d.get("t_for", {}), t_con=d.get("t_con", {}), a_for=d.get("a_for", {}), a_con=d.get("a_con", {}),
+        return cls(**base, forma=c("forma"), k_elo=d.get("k_elo", K_ELO), alfa=d.get("alfa", ALFA_GOLES), extras=tuple(d.get("extras", ())),
+                   t_for=c("t_for"), t_con=c("t_con"), a_for=c("a_for"), a_con=c("a_con"),
                    media_t=d.get("media_t", 0.0), media_a=d.get("media_a", 0.0), n_tiros=d.get("n_tiros", 0),
-                   dev_h=d.get("dev_h", {}), dev_a=d.get("dev_a", {}))
+                   dev_h=c("dev_h"), dev_a=c("dev_a"))
 
 
 def _softmax(z: list[float]) -> list[float]:

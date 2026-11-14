@@ -1,5 +1,6 @@
 import type { ResultadoPrediccion } from "@/lib/api";
 import { CONFIANZA_DEFINICION, construirVista, pct, textoPick } from "@/lib/prediccion";
+import { GolesPorEquipo } from "./GolesPorEquipo";
 import { ConfianzaBadge } from "./ConfianzaBadge";
 import { ProbabilidadBar } from "./ProbabilidadBar";
 
@@ -78,6 +79,8 @@ export function PrediccionResultado({ resultado, local, visitante }: Props) {
           {resultado.modelo_laplace.btts_si != null && (<>{" · ambos marcan "}<span className="num">{pct(resultado.modelo_laplace.btts_si)}%</span></>)}
         </p>
       )}
+
+      <GolesPorEquipo goles={resultado.modelo_laplace?.goles_por_equipo} local={local} visitante={visitante} marcador={resultado.modelo_laplace?.marcador_mas_probable} />
 
       {vista.modulos.length > 0 && (
         <details className="group text-xs">

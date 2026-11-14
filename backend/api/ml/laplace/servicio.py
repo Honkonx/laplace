@@ -227,6 +227,9 @@ def resumen_para_consumidores(salida: dict) -> dict | None:
             "btts_si": round(salida["btts"]["si"], 4) if "btts" in v else None,
             "mas_2_5": round(salida["over_under"]["2.5"]["mas"], 4) if "o25" in v else None,
             "marcador_mas_probable": salida["marcadores"][0]["marcador"] if "total" in v else None,
+            # GO-2: goles de cada equipo (esperados, 0/1/2/3+ y «marca»); salen si superaron a la media de la liga («equipo») o, en artefactos viejos, si el total estaba validado
+            "goles_por_equipo": ({"local": goles.por_equipo(salida["goles_esperados"]["local"]), "visitante": goles.por_equipo(salida["goles_esperados"]["visitante"]),
+                                  "acierto_historico_marcador": goles.ACIERTO_HISTORICO_MARCADOR} if ("equipo" in v or "total" in v) and salida.get("goles_esperados") else None),
             "p1x2_con_mercado": {k: round(v_, 4) for k, v_ in salida["p1x2_con_mercado"].items()} if salida.get("p1x2_con_mercado") else None,
             "confianza_dispersion": salida["confianza"], "modelo": salida.get("modelo"),
             "etiqueta": _etiqueta_fuente(salida)}

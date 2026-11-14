@@ -52,6 +52,8 @@ router = APIRouter(prefix="/api/v1/scheduler", tags=["scheduler"], dependencies=
 # se registran bajo `JOB_RESULTADOS`.
 JOB_TOP_PICKS = "wfd_top_picks"
 JOB_RESULTADOS = "wfe_resultados"
+JOB_VERIFICACION = "verificar_partidos"
+JOB_INFORME_SEMANAL = "informe_semanal"
 JOB_LAPLACE_AGENTS = "laplace_agents_autoeval"
 JOB_FUENTES_DEPORTIVAS = "fuentes_deportivas_health"
 JOB_REFRESCO_CUOTAS = "refresco_cuotas"
@@ -64,6 +66,8 @@ JOB_REENTRENO_LAPLACE = "modelo_laplace_reentreno"
 # `/status` debe mostrarlo aunque el proceso aún responda `/health`.
 VENTANA_MINUTOS = {
     JOB_RESULTADOS: 180,
+    JOB_VERIFICACION: 30,
+    JOB_INFORME_SEMANAL: 10_200,   # semanal (domingo 21:30): 7 días + margen
     JOB_TOP_PICKS: 1_560,
     JOB_LAPLACE_AGENTS: 1_560,
     JOB_FUENTES_DEPORTIVAS: 1_560,

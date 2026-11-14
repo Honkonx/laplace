@@ -116,8 +116,11 @@ def _mercados_de_goles(modelo: dict) -> str:
     g, partes = modelo.get("goles_esperados"), []
     if g:
         partes.append(f"goles esperados {g['local']}-{g['visitante']}")
+    eq = modelo.get("goles_por_equipo")
+    if eq:
+        partes.append(f"probabilidad de que cada equipo marque: local {round(eq['local']['marca'] * 100)}%, visitante {round(eq['visitante']['marca'] * 100)}% (goles esperados por equipo medidos fuera de muestra)")
     if modelo.get("marcador_mas_probable"):
-        partes.append(f"marcador más probable {modelo['marcador_mas_probable']}")
+        partes.append(f"marcador más probable {modelo['marcador_mas_probable']}" + (f" (acierta ~{round(eq['acierto_historico_marcador'] * 100)}% de las veces)" if eq else ""))
     if modelo.get("btts_si") is not None:
         partes.append(f"ambos marcan {round(modelo['btts_si'] * 100, 1)}%")
     if modelo.get("mas_2_5") is not None:

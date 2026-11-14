@@ -6,12 +6,13 @@ y los helpers de fechas/imágenes que comparten. Dividido de `gateway.py` sin ca
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 import httpx
 
 from backend.api.core.config import settings
 from backend.api.core.exceptions import BSDAPIError, ExternalSourceError
+from backend.api.core.horario import esd_chile_de_timestamp, inicio_y_hora_chile
 from backend.api.db import partidos_repo
 from backend.api.services._http_retry import CuotaApiFootballError, cuerpo_api_football, get_con_reintento_429
 from backend.api.services.circuit_breaker import CircuitBreakerAbiertoError, obtener_circuit_breaker
@@ -35,10 +36,14 @@ def _yyyymmdd_to_bd(fecha_raw: str) -> str:
 
 
 def _timestamp_to_esd(ts: int) -> str:
-    # La hora local se calcula sumando el desfase al instante, no restándolo solo a la hora: un partido a las 02:30 UTC es del día ANTERIOR en Chile
-    # (antes quedaba con el día UTC y la hora local, p. ej. 2026-11-10 22:30 en vez de 2026-11-09 22:30; hallazgo de la prueba de cobertura 2026-11-10).
-    local = datetime.fromtimestamp(ts, tz=timezone.utc) + timedelta(hours=UTC_OFFSET)
-    return f"{local.year}{local.month:02d}{local.day:02d}{local.hour:02d}{local.minute:02d}"
+    # Hora de pared de Chile con su horario de verano (antes un −4 fijo: en noviembre Chile está en UTC−3 y el partido salía una hora antes).
+    # La fecha también se calcula en Chile: un partido a las 02:30 UTC es del día ANTERIOR (hallazgo de la prueba de cobertura 2026-11-10).
+    return esd_chile_de_timestamp(ts)
+
+
+def _esd_de_inicio(inicio_utc: str) -> str:
+    from backend.api.core.horario import a_utc, utc_a_chile
+    return utc_a_chile(a_utc(inicio_utc)).strftime("%Y%m%d%H%M")
 
 
 def _timestamp_to_iso(ts: int) -> str:
@@ -114,8 +119,14 @@ async def _livescore6_stages(client: httpx.AsyncClient, fecha_raw: str) -> list[
         timeout=15,
     )
     r.raise_for_status()
-    data = r.json()
-    return data.get("Stages") or None
+    stages = r.json().get("Stages") or None
+    for stage in stages or []:
+        for ev in stage.get("Events") or []:
+            inicio, _ = inicio_y_hora_chile(ev.get("Esd"), ev.get("kick_off_utc"))
+            if inicio:
+                ev["kick_off_utc"] = inicio
+                ev["Esd"] = _esd_de_inicio(inicio)
+    return stages
 
 
 async def _bsd_stages(client: httpx.AsyncClient, fecha_raw: str) -> list[dict] | None:

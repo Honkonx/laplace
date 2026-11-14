@@ -343,7 +343,7 @@ def test_job_laplace_agents_ok_y_error(sesion, monkeypatch):
 JOBS_ESPERADOS = {
     "fuentes_deportivas_health", "laplace_agents_autoeval", "wfd_top_picks", "wfe_resultados_2h",
     "wfe_resultados_7am", "refresco_cuotas", "colector_resultados", "reajuste_modelos",
-    "mantenimiento_jobs_colgados", "purga_datos_viejos", "modelo_laplace_sombra", "avisos_favoritos", "avisos_resultados", "resultados_actuales", "estado_vivo_modelo", "modelo_laplace_reentreno",
+    "mantenimiento_jobs_colgados", "purga_datos_viejos", "modelo_laplace_sombra", "avisos_favoritos", "avisos_resultados", "resultados_actuales", "estado_vivo_modelo", "modelo_laplace_reentreno", "verificar_partidos", "verificar_partidos_arranque", "informe_semanal",
 }
 
 

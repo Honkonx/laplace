@@ -56,6 +56,23 @@ export interface ModeloLaplaceResumen {
   btts_si: number | null;
   mas_2_5: number | null;
   marcador_mas_probable: string | null;
+  /** Goles por equipo; solo llega si el modelo los validó. */
+  goles_por_equipo?: GolesPorEquipoResumen | null;
+}
+
+export interface GolesEquipo {
+  esperados: number;
+  p0: number;
+  p1: number;
+  p2: number;
+  p3_o_mas: number;
+  marca: number;
+}
+
+export interface GolesPorEquipoResumen {
+  local: GolesEquipo;
+  visitante: GolesEquipo;
+  acierto_historico_marcador?: number | null;
 }
 
 export interface ResultadoPrediccion {

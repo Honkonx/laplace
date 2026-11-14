@@ -46,12 +46,15 @@ Se ejecutan con el Python del entorno: `python backend/scripts/<nombre>.py --hel
 | `generar_referencia_docs.py` | genera las referencias técnicas de `docs/backend/referencia/` a partir del CÓDIGO (no de otros documentos). |
 | `laplace_auditor.py` | Auditoría real de winrate/calibración, contra la BD real. |
 | `limpiar_huerfanos.py` | retira de la base SQLite los datos de prueba y las filas corruptas conocidas, con respaldo previo y un archivo de lo retirado. |
+| `maquina_del_tiempo.py` | repite el pasado con reloj simulado para probar que el sistema se verifica solo (SM-1 a SM-4 de `docs/mejoras/modelo/12_PLAN_...`). |
 | `medir_aporte_ia.py` | informe del aporte de la IA (python_baseline vs python_plus_ia del laboratorio). |
 | `medir_calibracion_por_liga.py` | Mide si calibrar por liga (temperatura propia de cada liga) mejora al modelo, fuera de muestra (MD-6). |
 | `medir_cobertura_historico.py` | mide qué fracción de los partidos reales resuelve el módulo `historico`. |
 | `medir_colector.py` | cobertura de la capa en vivo, por liga con modelo (SOLO lectura). |
 | `medir_discrepancia_ia.py` | ¿cuando la IA diverge del consenso, éste falla más? (MB-15). |
 | `medir_equipo_nuevo_elo.py` | Mide si un rating inicial propio para un equipo que el modelo no conoce (recién llegado a la liga) mejora al modelo Laplace (MP-10), fuera de muestra y con la puerta… |
+| `medir_goles_con_tiros.py` | Mide (GO-4) si los TIROS mejoran los goles esperados de cada equipo, fuera de muestra y sin ver el futuro. |
+| `medir_goles_por_equipo.py` | Mide, fuera de muestra y sin ver el futuro, si el modelo Laplace sabe decir CUÁNTOS GOLES anotará cada equipo (no solo quién gana). |
 | `medir_intervalos.py` | Estudio de intervalos de credibilidad de las probabilidades (MP-16): ¿un posterior bayesiano completo (pymc/MCMC) aportaría algo sobre los intervalos que el modelo ya… |
 | `medir_mercados_de_goles.py` | Mide, fuera de muestra, los mercados de goles del modelo Laplace (más de 2,5 y ambos marcan) frente a la tasa base y, donde hay cuotas, frente al mercado (MP-11). |
 | `medir_modelo_segmentos_y_cierre.py` | Mide el modelo Laplace por segmentos (MP-15) y frente a la línea de cierre del mercado (MP-6), fuera de muestra y sin mirar el futuro. |

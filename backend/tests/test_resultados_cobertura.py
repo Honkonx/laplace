@@ -131,7 +131,7 @@ def test_apif_sin_clave_o_sin_ids_no_consulta(monkeypatch):
 
 
 def test_apif_agrupa_en_lotes_de_20_y_parsea_fixtures():
-    cliente = _ClienteFalso({"/fixtures?ids=": _Resp({"response": [_fixture_apif(10, "AET", 2, 1)]})})
+    cliente = _ClienteFalso({"/fixtures?id": _Resp({"response": [_fixture_apif(10, "AET", 2, 1)]})})
     ids = [str(i) for i in range(10, 35)]  # 25 ids => 2 llamadas
     res = _correr(svc._consultar_fixtures_apifootball(cliente, ids))
     assert len(cliente.llamadas) == 2
@@ -141,19 +141,19 @@ def test_apif_agrupa_en_lotes_de_20_y_parsea_fixtures():
 
 
 def test_apif_cuota_agotada_http_429_se_salta_el_lote():
-    cliente = _ClienteFalso({"/fixtures?ids=": _Resp({}, 429)})
+    cliente = _ClienteFalso({"/fixtures?id": _Resp({}, 429)})
     assert _correr(svc._consultar_fixtures_apifootball(cliente, ["1", "2"])) == {}
 
 
 def test_apif_http_200_con_errors_se_lee_como_sin_datos():
     cuerpo = {"errors": {"plan": "Free plans do not have access to this season, try from 2022 to 2024."},
               "response": []}
-    cliente = _ClienteFalso({"/fixtures?ids=": _Resp(cuerpo)})
+    cliente = _ClienteFalso({"/fixtures?id": _Resp(cuerpo)})
     assert _correr(svc._consultar_fixtures_apifootball(cliente, ["1"])) == {}
 
 
 def test_apif_excepcion_de_red_no_lanza():
-    cliente = _ClienteFalso({"/fixtures?ids=": httpx.ReadTimeout("lento")})
+    cliente = _ClienteFalso({"/fixtures?id": httpx.ReadTimeout("lento")})
     assert _correr(svc._consultar_fixtures_apifootball(cliente, ["1"])) == {}
 
 
@@ -221,18 +221,18 @@ def test_actualizar_resultados_bsd_gana_sobre_apif_y_califica(db_session):
     _comparativo(db_session, "fxA", pick_final="Local")
     cliente = _ClienteFalso({
         "/events/": _Resp({"results": [_evento_bsd(gl=2, gv=0)]}),
-        "/fixtures?ids=": _Resp({"response": []}),
+        "/fixtures?id": _Resp({"response": []}),
     })
     out = _correr(svc.actualizar_resultados(db_session, cliente, ["fxA"], FECHA))
     assert out["resumen"] == {"total": 1, "actualizados": 1, "pendientes": 0, "cancelados": 0, "sin_datos": 0}
-    assert not any("fixtures?ids=" in u for u in cliente.llamadas)  # BSD resolvió: api-football no se gasta
+    assert not any("fixtures?id" in u for u in cliente.llamadas)  # BSD resolvió: api-football no se gasta
     assert db_session.query(AnalisisComparativo).filter_by(partido_id="fxA").one().pick_correcto == 1
 
 
 @pytest.mark.parametrize("status,gl,gv,ganador", [("FT", 1, 0, "local"), ("AET", 1, 2, "visitante"), ("PEN", 2, 2, "empate")])
 def test_actualizar_resultados_marcadores_terminados(db_session, monkeypatch, status, gl, gv, ganador):
     monkeypatch.setattr(settings, "BSD_API_KEY", "")
-    cliente = _ClienteFalso({"/fixtures?ids=": _Resp({"response": [_fixture_apif(77, status, gl, gv)]})})
+    cliente = _ClienteFalso({"/fixtures?id": _Resp({"response": [_fixture_apif(77, status, gl, gv)]})})
     out = _correr(svc.actualizar_resultados(db_session, cliente, ["77"], FECHA))
     assert out["resumen"]["actualizados"] == 1
     assert out["detalle"][0]["resultado"]["ganador"] == ganador
@@ -241,7 +241,7 @@ def test_actualizar_resultados_marcadores_terminados(db_session, monkeypatch, st
 
 def test_actualizar_resultados_partido_sin_terminar_queda_pendiente(db_session, monkeypatch):
     monkeypatch.setattr(settings, "BSD_API_KEY", "")
-    cliente = _ClienteFalso({"/fixtures?ids=": _Resp({"response": [_fixture_apif(5, "1H", None, None),
+    cliente = _ClienteFalso({"/fixtures?id": _Resp({"response": [_fixture_apif(5, "1H", None, None),
                                                                     _fixture_apif(6, "NS", None, None)]})})
     out = _correr(svc.actualizar_resultados(db_session, cliente, ["5", "6"], FECHA))
     assert out["resumen"]["pendientes"] == 2 and out["resumen"]["actualizados"] == 0
@@ -253,7 +253,7 @@ def test_actualizar_resultados_cancelado_marca_comparativo(db_session, monkeypat
     fila = _comparativo(db_session, "c1")
     db_session.add(PartidoDia(fecha=FECHA, match_id="c1"))
     db_session.commit()
-    cliente = _ClienteFalso({"/fixtures?ids=": _Resp({"response": [_fixture_apif(1, "PST", None, None)]})})
+    cliente = _ClienteFalso({"/fixtures?id": _Resp({"response": [_fixture_apif(1, "PST", None, None)]})})
     # el id del fixture devuelto es "1": se alinea con el comparativo
     fila.partido_id = "1"
     db_session.add(PartidoDia(fecha=FECHA, match_id="1"))
@@ -268,7 +268,7 @@ def test_actualizar_resultados_cancelado_marca_comparativo(db_session, monkeypat
 def test_actualizar_resultados_sin_datos_api_cuota_agotada_o_errors(db_session, monkeypatch):
     monkeypatch.setattr(settings, "BSD_API_KEY", "")
     for resp in (_Resp({}, 429), _Resp({"errors": {"requests": "rate limit"}, "response": []})):
-        cliente = _ClienteFalso({"/fixtures?ids=": resp})
+        cliente = _ClienteFalso({"/fixtures?id": resp})
         out = _correr(svc.actualizar_resultados(db_session, cliente, ["99"], FECHA))
         assert out["detalle"] == [{"fixture_id": "99", "estado": "sin_datos_api"}]
         assert out["resumen"]["sin_datos"] == 1
@@ -278,7 +278,7 @@ def test_actualizar_resultados_sin_datos_api_cuota_agotada_o_errors(db_session, 
 def test_actualizar_resultados_ya_verificado_es_idempotente(db_session, monkeypatch):
     monkeypatch.setattr(settings, "BSD_API_KEY", "")
     _comparativo(db_session, "42", pick_final="Local")
-    cliente = _ClienteFalso({"/fixtures?ids=": _Resp({"response": [_fixture_apif(42, "FT", 1, 0)]})})
+    cliente = _ClienteFalso({"/fixtures?id": _Resp({"response": [_fixture_apif(42, "FT", 1, 0)]})})
     primera = _correr(svc.actualizar_resultados(db_session, cliente, ["42"], FECHA))
     segunda = _correr(svc.actualizar_resultados(db_session, cliente, ["42"], FECHA))
     assert primera["detalle"][0]["resultado"]["comparativos"] == 1
@@ -290,7 +290,7 @@ def test_actualizar_resultados_ya_verificado_es_idempotente(db_session, monkeypa
 def test_actualizar_resultados_toma_pendientes_del_dia_para_buscar_en_bsd(db_session):
     _comparativo(db_session, "fxB", pick_final="Local")
     cliente = _ClienteFalso({"/events/": _Resp({"results": []}),
-                             "/fixtures?ids=": _Resp({"response": []})})
+                             "/fixtures?id": _Resp({"response": []})})
     out = _correr(svc.actualizar_resultados(db_session, cliente, ["fxB"], FECHA))
     assert out["resumen"]["sin_datos"] == 1
     assert any("/events/" in u for u in cliente.llamadas)  # tenía local/visitante => probó BSD primero
